@@ -1,7 +1,7 @@
 /**
  * ウマ娘 なんでもサーモンサモナー - Application Logic
  * @author @nyaftama
- * @version 0.90a
+ * @version 0.90b
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -727,7 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 eraserToolsCard.style.display = 'block';
             }
 
-            renderOverlay();
+            renderAll();
         });
     });
 
@@ -858,16 +858,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updateSalmonSliderUI();
-    }
-
-    function updateSalmonSliderUI() {
-        salmonScaleInput.value = 100;
-        salmonScaleVal.textContent = '100%';
-        salmonRotZInput.value = 0;
-        salmonRotZVal.textContent = '0°';
-        salmonBulgeInput.value = Math.round(salmonState.bulge * 100);
-        salmonBulgeVal.textContent = `${Math.round(salmonState.bulge * 100)}%`;
-        if (lightColorInput) lightColorInput.value = '#ffffff';
     }
 
     // --- Interactive Canvas Mouse & Touch Drag Handling ---
@@ -1063,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Master Render Pipeline ---
-    function renderAll() {
+    function renderAll(forExport = false) {
         if (!bgImage) return;
 
         // 1. Draw Base Background Image
@@ -1093,10 +1083,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 tCtx.drawImage(salmonEraseCanvas, 0, 0);
             }
 
-            mainCtx.drawImage(tempSalmonCanvas, 0, 0);
+            // Render fish translucent (55% opacity) during trimming mode so user can see hand/fingers underneath!
+            // During export generation or 'salmon' mode, fish is rendered at 100% full opacity.
+            if (!forExport && currentMode === 'eraseSalmon') {
+                mainCtx.save();
+                mainCtx.globalAlpha = 0.55;
+                mainCtx.drawImage(tempSalmonCanvas, 0, 0);
+                mainCtx.restore();
+            } else {
+                mainCtx.drawImage(tempSalmonCanvas, 0, 0);
+            }
         }
 
-        renderOverlay();
+        if (!forExport) {
+            renderOverlay();
+        }
     }
 
     function renderThreeSalmon() {
@@ -1165,10 +1166,13 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('背景画像が読み込まれていません。');
             return;
         }
-        renderAll();
+        renderAll(true); // Render for export (100% fish opacity, no overlays/particles)
         const dataUrl = mainCanvas.toDataURL('image/png');
         resultImage.src = dataUrl;
         downloadBtn.href = dataUrl;
+
+        // Re-render UI state after capturing export
+        renderAll(false);
 
         // Construct Twitter/X Share intent URL matching uma-new-era-title
         const fishName = FISH_CONFIGS[currentFishType].name;
