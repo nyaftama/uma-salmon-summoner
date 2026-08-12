@@ -38,7 +38,7 @@
     <!-- HEIC / HEIF Image Converter (heic-to) -->
     <script src="https://cdn.jsdelivr.net/npm/heic-to/dist/iife/heic-to.js"></script>
 
-    <link rel="stylesheet" href="css/style.css?v=0.91">
+    <link rel="stylesheet" href="css/style.css?v=0.91a">
 </head>
 
 <body>
@@ -47,7 +47,7 @@
         <!-- Header Meta -->
         <div class="header-meta">
             <div class="version-group">
-                <span class="version-badge">v0.91</span>
+                <span class="version-badge">v0.91a</span>
                 <a href="https://github.com/nyaftama/uma-salmon-summoner#%E6%9B%B4%E6%96%B0%E5%B1%A5%E6%AD%B4"
                     target="_blank" rel="noopener noreferrer" class="changelog-link">更新履歴</a>
             </div>
@@ -319,36 +319,45 @@
         </footer>
     </div>
 
-    <!-- Save / Share Modal (Strictly aligned with uma-new-era-title) -->
+    <!-- Save / Share Modal (Strictly aligned with corner-to-ratio) -->
     <div id="resultModal" class="modal-overlay">
         <div class="modal-content">
-            <h3 class="modal-title">画像が完成しました！</h3>
-            <p class="modal-desc">
-                画像を長押し（または右クリック）でデバイスに保存できます。<br>
-                <span style="color: var(--primary-color); font-weight: bold;">X（Twitter）でシェアする際は、保存した画像を添付してください。</span>
-            </p>
-
-            <div class="modal-image-wrapper">
-                <img id="resultImage" src="" alt="生成結果画像">
+            <!-- Modal Loading State (Spinner) -->
+            <div id="modalLoading" class="modal-loading" style="display: none;">
+                <div class="spinner"></div>
+                <span>高画質画像を生成中...</span>
             </div>
 
-            <div class="modal-actions">
-                <a id="downloadBtn" class="btn btn-primary" download="salmon-summon.png">
-                    ダウンロード
-                </a>
-                <a id="twitterShareBtn" class="btn btn-twitter" href="#" target="_blank" rel="noopener noreferrer">
-                    Xでシェア
-                </a>
-            </div>
+            <!-- Modal Result Body -->
+            <div id="modalBodyContent">
+                <h3 class="modal-title">画像が完成しました！</h3>
+                <p class="modal-desc">
+                    画像を長押し（または右クリック）でデバイスに保存できます。<br>
+                    <span style="color: var(--primary-color); font-weight: bold;">X（Twitter）でシェアする際は、保存した画像を添付してください。</span>
+                </p>
 
-            <div class="modal-actions-secondary">
-                <button type="button" id="copyImgBtn" class="btn btn-secondary"
-                    style="width: 100%; margin-bottom: 8px;">
-                    コピー
-                </button>
-                <button type="button" id="closeModalBtn" class="btn btn-secondary" style="width: 100%;">
-                    閉じる
-                </button>
+                <div class="modal-image-wrapper">
+                    <img id="resultImage" src="" alt="生成結果画像">
+                </div>
+
+                <div class="modal-actions">
+                    <a id="downloadBtn" class="btn btn-primary" download="salmon-summon.png">
+                        ダウンロード
+                    </a>
+                    <a id="twitterShareBtn" class="btn btn-twitter" href="#" target="_blank" rel="noopener noreferrer">
+                        Xでシェア
+                    </a>
+                </div>
+
+                <div class="modal-actions-secondary">
+                    <button type="button" id="copyImgBtn" class="btn btn-secondary"
+                        style="width: 100%; margin-bottom: 8px;">
+                        コピー
+                    </button>
+                    <button type="button" id="closeModalBtn" class="btn btn-secondary" style="width: 100%;">
+                        閉じる
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -356,7 +365,7 @@
     <!-- Toast Notification (Strictly aligned with uma-new-era-title) -->
     <div id="toast" class="toast"></div>
 
-    <script src="js/app.js?v=0.91"></script>
+    <script src="js/app.js?v=0.91a"></script>
 </body>
 
 </html>

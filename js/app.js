@@ -1,7 +1,7 @@
 /**
  * ウマ娘 なんでもサーモンサモナー - Application Logic
  * @author @nyaftama
- * @version 0.90c
+ * @version 0.91a
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -45,6 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Export Controls & Modal
     const generateBtn = document.getElementById('generateBtn');
     const resultModal = document.getElementById('resultModal');
+    const modalLoading = document.getElementById('modalLoading');
+    const modalBodyContent = document.getElementById('modalBodyContent');
     const closeModalBtn = document.getElementById('closeModalBtn');
     const resultImage = document.getElementById('resultImage');
     const downloadBtn = document.getElementById('downloadBtn');
@@ -1185,23 +1187,55 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('背景画像が読み込まれていません。');
             return;
         }
-        renderAll(true); // Render for export (100% fish opacity, no overlays/particles)
-        const dataUrl = mainCanvas.toDataURL('image/png');
-        resultImage.src = dataUrl;
-        downloadBtn.href = dataUrl;
 
-        // Re-render UI state after capturing export
-        renderAll(false);
+        // 1. Open modal immediately with spinner state (Matching corner-to-ratio)
+        if (modalLoading) modalLoading.style.display = 'flex';
+        if (modalBodyContent) modalBodyContent.style.display = 'none';
 
-        // Construct Twitter/X Share intent URL matching uma-new-era-title
-        const fishName = FISH_CONFIGS[currentFishType].name;
-        const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもサーモンサモナー\n`);
-        const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
-        if (twitterShareBtn) {
-            twitterShareBtn.href = tweetUrl;
+        // Force CSS animation reflow for spinner
+        if (modalLoading) {
+            const spinner = modalLoading.querySelector('.spinner');
+            if (spinner) {
+                spinner.style.animation = 'none';
+                void spinner.offsetWidth;
+                spinner.style.animation = '';
+            }
         }
 
         resultModal.classList.add('open');
+
+        // 2. Schedule asynchronous image generation so the browser renders modal & spinner first
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                try {
+                    // Render full 100% opaque fish for export without overlays
+                    renderAll(true);
+
+                    const dataUrl = mainCanvas.toDataURL('image/png');
+                    resultImage.src = dataUrl;
+                    downloadBtn.href = dataUrl;
+
+                    // Re-render transient UI state for workspace
+                    renderAll(false);
+
+                    // Construct Twitter/X Share intent URL matching uma-new-era-title
+                    const fishName = FISH_CONFIGS[currentFishType].name;
+                    const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもサーモンサモナー\n`);
+                    const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(location.href)}`;
+                    if (twitterShareBtn) {
+                        twitterShareBtn.href = tweetUrl;
+                    }
+
+                    // Hide loading spinner and reveal completed image modal body
+                    if (modalLoading) modalLoading.style.display = 'none';
+                    if (modalBodyContent) modalBodyContent.style.display = 'block';
+                } catch (err) {
+                    console.error('Image generation error:', err);
+                    showToast('画像の生成に失敗しました');
+                    resultModal.classList.remove('open');
+                }
+            }, 50);
+        });
     });
 
     closeModalBtn.addEventListener('click', () => {
