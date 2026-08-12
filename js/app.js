@@ -1196,7 +1196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Construct Twitter/X Share intent URL matching uma-new-era-title
         const fishName = FISH_CONFIGS[currentFishType].name;
         const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもサーモンサモナー\n`);
-        const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(location.href)}`;
+        const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
         if (twitterShareBtn) {
             twitterShareBtn.href = tweetUrl;
         }
