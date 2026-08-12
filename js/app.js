@@ -1,7 +1,7 @@
 /**
  * ウマ娘 なんでもサーモンサモナー - Application Logic
  * @author @nyaftama
- * @version 0.90b
+ * @version 0.90c
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -211,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentFishType = 'tuna';
     const fishCache = {}; // Cache processed Three.js assets per fish type
+    let isSalmonLoaded = false; // State flag for loaded 3D fish mesh
 
     // --- State Variables ---
     let bgImage = null;
@@ -261,6 +262,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!mainCanvas.width) return 30;
         const baseDim = Math.max(mainCanvas.width, mainCanvas.height);
         return Math.max(2, (brushSizePct / 100) * baseDim);
+    }
+
+    // Schedule render on next frame to ensure WebGL buffer is fully flushed & compiled
+    function requestRender() {
+        renderAll();
+        requestAnimationFrame(() => {
+            renderAll();
+        });
     }
 
     // --- Three.js Initialization ---
@@ -432,11 +441,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!bgImage) {
             loadDemoImage();
         } else {
-            // Recalculate scale for new fish aspect ratio (with 1.45 baseline)
+            // Recalculate scale for new fish aspect ratio
             const currentPct = parseInt(salmonScaleInput.value, 10) || 100;
             const baseScale = getBaseSalmonScale(bgImage.width);
             salmonState.scale = (currentPct / 100) * baseScale;
-            renderAll();
+            requestRender();
         }
     }
 
@@ -703,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateSalmonSliderUI();
         updateBrushCursorSize();
-        renderAll();
+        requestRender();
 
         if (shouldScroll) {
             scrollToEditor();
@@ -727,7 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 eraserToolsCard.style.display = 'block';
             }
 
-            renderAll();
+            requestRender();
         });
     });
 
@@ -826,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     resetSalmonBtn.addEventListener('click', () => {
         resetSalmonState();
-        renderAll();
+        requestRender();
         showToast('位置・角度・ライティングをリセットしました');
     });
 
@@ -858,6 +867,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         updateSalmonSliderUI();
+    }
+
+    function updateSalmonSliderUI() {
+        salmonScaleInput.value = 100;
+        salmonScaleVal.textContent = '100%';
+        salmonRotZInput.value = 0;
+        salmonRotZVal.textContent = '0°';
+        salmonBulgeInput.value = Math.round(salmonState.bulge * 100);
+        salmonBulgeVal.textContent = `${Math.round(salmonState.bulge * 100)}%`;
+        if (lightColorInput) lightColorInput.value = '#ffffff';
     }
 
     // --- Interactive Canvas Mouse & Touch Drag Handling ---
