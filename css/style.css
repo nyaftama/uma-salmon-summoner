@@ -1,0 +1,710 @@
+/* -------------------------------------------------------------------------- */
+/* ウマ娘 なんでもサーモンサモナー - Stylesheet                              */
+/* Derived strictly from uma-new-era-title & uma-hyper-recovery UI system    */
+/* -------------------------------------------------------------------------- */
+
+:root {
+    --primary-color: #2e7d32;
+    --primary-hover: #1b5e20;
+    --primary-light: #e8f5e9;
+    --primary-border: #a5d6a7;
+    --bg-color: #f4f6f8;
+    --card-bg: #ffffff;
+    --text-color: #333333;
+    --text-main: #222222;
+    --text-muted: #666666;
+    --border-color: #cccccc;
+    --radius: 12px;
+    --radius-main: 12px;
+    --radius-small: 8px;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-hover: 0 8px 24px rgba(46, 125, 50, 0.12);
+    --transition: all 0.2s ease;
+    --danger-color: #d32f2f;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: "palt";
+    -webkit-font-feature-settings: "palt";
+    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+    color: var(--text-main);
+    min-height: 100vh;
+    padding: 24px 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Header Meta & Title */
+.header-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.version-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.version-badge {
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.changelog-link,
+.credit-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.changelog-link:hover,
+.credit-link:hover {
+    color: var(--primary-color);
+}
+
+.main-title {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--primary-color);
+    text-align: center;
+    line-height: 1.3;
+    margin-bottom: 2px;
+}
+
+.sub-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.eng-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.tool-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.tool-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--primary-color);
+    background: var(--primary-light);
+    border: 1px solid var(--primary-border);
+    padding: 4px 10px;
+    border-radius: 16px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+
+.tool-link:hover {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+/* Card Container (Strictly aligned with uma-new-era-title) */
+.card {
+    background: var(--card-bg);
+    border-radius: var(--radius-main);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #222222;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 2px solid #cccccc;
+    padding-bottom: 8px;
+}
+
+/* Dropzone for Image Upload */
+.dropzone {
+    border: 2px dashed #cccccc;
+    border-radius: 10px;
+    padding: 25px 15px;
+    text-align: center;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dropzone:hover,
+.dropzone.dragover {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+}
+
+.dropzone-icon {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 10px auto;
+    fill: var(--primary-color);
+}
+
+.dropzone-text {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #444444;
+    margin-bottom: 4px;
+}
+
+.dropzone-subtext {
+    font-size: 0.75rem;
+    color: #888888;
+}
+
+.file-input {
+    display: none;
+}
+
+.dropzone-privacy-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 10px;
+}
+
+.dropzone-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+/* Canvas Workspace & Tabs */
+.editor-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    background: #f8f9fa;
+    border-radius: var(--radius-small);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+
+/* Canvas Overlay Radio Group (Positioned at top-right of canvas, matching uma-new-era-title) */
+.canvas-overlay-drag-selector {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 20;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    background: #ffffff;
+}
+
+/* Radio Group (Matched exactly with uma-new-era-title) */
+.radio-group {
+    display: inline-flex;
+    gap: 0;
+}
+
+.radio-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--card-bg);
+    border: 1px solid #ccc;
+    border-radius: 0;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #444;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.radio-option:first-child {
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.radio-option:last-child {
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+.radio-option+.radio-option {
+    margin-left: -1px;
+}
+
+.radio-option:hover,
+.radio-option:has(input[type="radio"]:checked) {
+    z-index: 1;
+}
+
+.radio-option:hover {
+    border-color: var(--primary-color);
+    background: #f5f5f5;
+}
+
+.radio-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.radio-custom {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    background: var(--card-bg);
+    display: inline-block;
+    position: relative;
+    transition: all 0.15s ease-in-out;
+    flex-shrink: 0;
+}
+
+.radio-custom::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    transition: transform 0.15s ease-in-out;
+}
+
+.radio-option input[type="radio"]:checked+.radio-custom {
+    border-color: var(--primary-color);
+}
+
+.radio-option input[type="radio"]:checked+.radio-custom::after {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.radio-option input[type="radio"]:checked~.radio-text {
+    color: var(--primary-color);
+}
+
+.radio-option:has(input[type="radio"]:checked) {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 6px rgba(46, 125, 50, 0.12);
+}
+
+.canvas-workspace {
+    position: relative;
+    width: 100%;
+    min-height: 360px;
+    background: #eef2f3;
+    border-radius: var(--radius-main);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    user-select: none;
+    touch-action: none;
+}
+
+#mainCanvas {
+    max-width: 100%;
+    max-height: 600px;
+    display: block;
+    object-fit: contain;
+}
+
+#overlayCanvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    max-width: 100%;
+    max-height: 600px;
+}
+
+.brush-cursor {
+    position: absolute;
+    border: 2px solid var(--primary-color);
+    background: rgba(46, 125, 50, 0.2);
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+}
+
+/* Tool Selector Buttons */
+.mask-tool-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.tool-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    border-radius: var(--radius-small);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tool-btn.active {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Form Controls, Sliders & Color Picker */
+.controls-grid,
+.salmon-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #333333;
+    margin-bottom: 6px;
+}
+
+.form-label-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.val-badge {
+    font-size: 12px;
+    background: var(--primary-light);
+    color: var(--primary-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.range-slider {
+    width: 100%;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+.color-picker-input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 38px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.color-picker-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.color-picker-input::-webkit-color-swatch {
+    border: none;
+    border-radius: 5px;
+}
+
+.color-picker-input::-moz-color-swatch {
+    border: none;
+    border-radius: 5px;
+}
+
+.mask-actions-row,
+.salmon-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.btn-group-right {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+/* Buttons (Strictly matched with uma-new-era-title & uma-hyper-recovery) */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: var(--transition);
+    text-decoration: none;
+    text-align: center;
+}
+
+.btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #ffffff;
+    color: #444;
+    border: 1px solid #ccc;
+}
+
+.btn-secondary:hover {
+    background: #f5f5f5;
+    border-color: #bbb;
+    color: #111;
+}
+
+.btn-secondary.danger {
+    color: var(--danger-color);
+    background: #ffffff;
+    border-color: #ffcdd2;
+}
+
+.btn-secondary.danger:hover {
+    background: #ffebee;
+    border-color: var(--danger-color);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
+.btn-large {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+}
+
+/* X (Twitter) Share Button (Strictly matched with uma-hyper-recovery) */
+.btn-twitter {
+    background: #000000;
+    color: #ffffff;
+}
+
+.btn-twitter:hover {
+    background: #333333;
+}
+
+/* Footer (Strictly copied from uma-new-era-title) */
+footer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 30px;
+}
+
+footer p {
+    margin: 4px 0;
+}
+
+/* Modal Overlay & Content (Strictly matched with uma-new-era-title & uma-hyper-recovery) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-height: 90vh;
+    max-height: 90svh;
+    overflow-y: auto;
+}
+
+.modal-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--primary-color);
+}
+
+.modal-desc {
+    font-size: 0.85rem;
+    color: #555555;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.modal-image-wrapper {
+    width: 100%;
+    background: #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-image-wrapper img {
+    max-width: 100%;
+    max-height: 50vh;
+    height: auto;
+    display: block;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.modal-actions .btn {
+    flex: 1;
+}
+
+.modal-actions-secondary {
+    margin-top: 10px;
+    width: 100%;
+}
+
+/* Toast Notification (Strictly matched with uma-new-era-title) */
+.toast {
+    position: fixed;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(30, 30, 30, 0.9);
+    color: #ffffff;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    z-index: 2000;
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}

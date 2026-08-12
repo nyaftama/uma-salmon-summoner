@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-2RNJ72H75W"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-2RNJ72H75W');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Prevent HTML Cache -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <title>ウマ娘 なんでもサーモンサモナー</title>
+    <meta name="description" content="任意の画像にゲーム「ウマ娘 プリティーダービー」のシャケやThisマグロを持たせられるファンメイド画像メーカーです。直感的な削りブラシで手元を前に出せます。">
+
+    <meta property="og:title" content="ウマ娘 なんでもサーモンサモナー">
+    <meta property="og:description" content="任意の画像にシャケ・Thisマグロを召喚できるツール">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nyaftama.github.io/uma-salmon-summoner/">
+    <meta property="og:site_name" content="ウマ娘 なんでもサーモンサモナー">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <!-- Three.js for 3D Salmon rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- HEIC / HEIF Image Converter (heic-to) -->
+    <script src="https://cdn.jsdelivr.net/npm/heic-to/dist/iife/heic-to.js"></script>
+
+    <link rel="stylesheet" href="css/style.css?v=0.90">
+</head>
+
+<body>
+
+    <div class="container">
+        <!-- Header Meta -->
+        <div class="header-meta">
+            <div class="version-group">
+                <span class="version-badge">v0.90</span>
+                <a href="https://github.com/nyaftama/uma-salmon-summoner#%E6%9B%B4%E6%96%B0%E5%B1%A5%E6%AD%B4"
+                    target="_blank" rel="noopener noreferrer" class="changelog-link">更新履歴</a>
+            </div>
+            <a href="https://nyaftama.github.io/" target="_blank" rel="noopener noreferrer" class="credit-link">
+                作った人: <strong>@nyaftama</strong>
+            </a>
+        </div>
+
+        <!-- Title Header -->
+        <h1 class="main-title">
+            ウマ娘 なんでもサーモンサモナー<br>
+            <span class="sub-title">SHAKEROCKなシャケ召喚ツール</span>
+        </h1>
+        <div class="eng-title">UMAMUSUME SALMON SUMMONER</div>
+
+        <div class="tool-links">
+            <a href="https://nyaftama.github.io/uma-new-era-title/" target="_blank" rel="noopener noreferrer"
+                class="tool-link">
+                <span>新時代の扉 レース名メーカー</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+            </a>
+            <a href="https://nyaftama.github.io/uma-hyper-recovery/" target="_blank" rel="noopener noreferrer"
+                class="tool-link">
+                <span>なんでも超回復メーカー</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+            </a>
+            <a href="https://nyaftama.github.io/uma-ouen-baken/" target="_blank" rel="noopener noreferrer"
+                class="tool-link">
+                <span>推しバ券メーカー</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+            </a>
+        </div>
+
+        <!-- Card 1: Image Input -->
+        <div class="card">
+            <div class="card-title">
+                <span>背景画像の指定</span>
+            </div>
+
+            <!-- Image Upload Dropzone -->
+            <div id="dropzone" class="dropzone">
+                <svg class="dropzone-icon" viewBox="0 0 24 24">
+                    <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" />
+                </svg>
+                <div class="dropzone-text">画像を選択またはドラッグ＆ドロップ</div>
+                <div class="dropzone-subtext">クリップボードからの貼り付け（Ctrl+V / Cmd+V）にも対応</div>
+                <input type="file" id="fileInput" class="file-input" accept="image/*,.heic,.heif">
+            </div>
+
+            <!-- Dropzone Privacy Note -->
+            <p class="dropzone-privacy-note">
+                <svg class="privacy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <span>画像はブラウザー内で処理されます。<br>サーバー等へアップロードされることはありません。</span>
+            </p>
+
+            <div class="dropzone-controls">
+                <button type="button" id="pasteImgBtn" class="btn btn-secondary btn-small">
+                    画像を貼り付け
+                </button>
+                <button type="button" id="resetImgBtn" class="btn btn-secondary btn-small">
+                    画像をリセット
+                </button>
+            </div>
+        </div>
+
+        <!-- Card 2: Interactive Editor Canvas -->
+        <div class="card">
+            <div class="card-title">
+                <span>おさかなエディター</span>
+            </div>
+
+            <!-- Mode Selection Tabs -->
+            <div class="editor-tabs">
+                <button type="button" class="tab-btn active" data-mode="salmon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" />
+                    </svg>
+                    <span>おさかな移動</span>
+                </button>
+                <button type="button" class="tab-btn" data-mode="eraseSalmon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M20 20H7L3 16C2.5 15.5 2.5 14.7 3 14.2L13.2 4C13.7 3.5 14.5 3.5 15 4L20 9C20.5 9.5 20.5 10.3 20 10.8L11 19.8">
+                        </path>
+                    </svg>
+                    <span>切り抜き</span>
+                </button>
+            </div>
+
+            <!-- Workspace Canvas Display Container -->
+            <div id="canvasWorkspace" class="canvas-workspace">
+                <!-- Drag Mode Overlay Selector (radio-group matching uma-new-era-title) -->
+                <div id="salmonDragToggleRow" class="canvas-overlay-drag-selector">
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="salmonDragMode" value="move" checked>
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">移動</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="salmonDragMode" value="rotate">
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">3D回転</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Mask Tool Overlay Selector for Erase Mode -->
+                <div id="maskToolToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="maskToolMode" value="erase" checked>
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">削る</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="maskToolMode" value="restore">
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">元に戻す</span>
+                        </label>
+                    </div>
+                </div>
+
+                <canvas id="mainCanvas"></canvas>
+                <canvas id="overlayCanvas"></canvas>
+                <div id="brushCursor" class="brush-cursor" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Card 3: Salmon Eraser Brush Controls -->
+        <div class="card" id="eraserToolsCard" style="display: none;">
+            <div class="card-title">
+                <span>ブラシ設定</span>
+            </div>
+
+            <div class="controls-grid">
+                <!-- Brush Size Slider in 0.1% Resolution-Independent Units -->
+                <div class="form-group">
+                    <label for="brushSize" class="form-label form-label-flex">
+                        <span>ブラシサイズ</span>
+                        <span id="brushSizeVal" class="val-badge">3.0%</span>
+                    </label>
+                    <input type="range" id="brushSize" min="0.1" max="15.0" step="0.1" value="3.0" class="range-slider">
+                </div>
+            </div>
+
+            <div class="mask-actions-row">
+                <div class="btn-group-right">
+                    <button type="button" id="undoEraseBtn" class="btn btn-secondary btn-small">
+                        1つ戻す (Undo)
+                    </button>
+                    <button type="button" id="clearEraseBtn" class="btn btn-secondary btn-small danger">
+                        削りを全消去 (リセット)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: 3D Fish Controls -->
+        <div class="card">
+            <div class="card-title">
+                <span>3Dおさかなの調整</span>
+            </div>
+
+            <div class="salmon-controls-grid">
+                <!-- Fish Type Radio Selector -->
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="form-label">おさかなの種類</label>
+                    <div class="radio-group" id="fishTypeSelector">
+                        <label class="radio-option">
+                            <input type="radio" name="fishType" value="tuna" checked>
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">Thisマグロ</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="fishType" value="salmon">
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">シャケ</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Scale Slider -->
+                <div class="form-group">
+                    <label for="salmonScale" class="form-label form-label-flex">
+                        <span>サイズ（拡大縮小）</span>
+                        <span id="salmonScaleVal" class="val-badge">100%</span>
+                    </label>
+                    <input type="range" id="salmonScale" min="20" max="300" value="100" class="range-slider">
+                </div>
+
+                <!-- 2D Rotation Slider (Z-axis) -->
+                <div class="form-group">
+                    <label for="salmonRotZ" class="form-label form-label-flex">
+                        <span>2D回転</span>
+                        <span id="salmonRotZVal" class="val-badge">0°</span>
+                    </label>
+                    <input type="range" id="salmonRotZ" min="-180" max="180" value="0" class="range-slider">
+                </div>
+
+                <!-- 3D Bulge Depth Slider -->
+                <div class="form-group">
+                    <label for="salmonBulge" class="form-label form-label-flex">
+                        <span>胴体の厚み</span>
+                        <span id="salmonBulgeVal" class="val-badge">35%</span>
+                    </label>
+                    <input type="range" id="salmonBulge" min="10" max="100" value="35" class="range-slider">
+                </div>
+
+                <!-- Light Color Picker -->
+                <div class="form-group">
+                    <label for="lightColor" class="form-label form-label-flex">
+                        <span>光源の色</span>
+                        <input type="color" id="lightColor" value="#ffffff" class="color-picker-input">
+                    </label>
+                </div>
+            </div>
+
+            <div class="salmon-actions-row">
+                <button type="button" id="resetSalmonBtn" class="btn btn-secondary btn-small">
+                    位置・角度・色をリセット
+                </button>
+            </div>
+        </div>
+
+        <!-- Card 5: Export & Save -->
+        <div class="card">
+            <div class="card-title">
+                <span>完成画像の書き出し</span>
+            </div>
+
+            <div class="export-controls">
+                <button type="button" id="generateBtn" class="btn btn-primary btn-large">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>画像を生成・保存</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>※当ツールは「ウマ娘 プリティーダービー」の非公式ツールです。</p>
+            <p>&copy; 2026 nyaftama</p>
+        </footer>
+    </div>
+
+    <!-- Save / Share Modal (Strictly aligned with uma-new-era-title) -->
+    <div id="resultModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="modal-title">画像が完成しました！</h3>
+            <p class="modal-desc">
+                画像を長押し（または右クリック）でデバイスに保存できます。<br>
+                <span style="color: var(--primary-color); font-weight: bold;">X（Twitter）でシェアする際は、保存した画像を添付してください。</span>
+            </p>
+
+            <div class="modal-image-wrapper">
+                <img id="resultImage" src="" alt="生成結果画像">
+            </div>
+
+            <div class="modal-actions">
+                <a id="downloadBtn" class="btn btn-primary" download="salmon-summon.png">
+                    ダウンロード
+                </a>
+                <a id="twitterShareBtn" class="btn btn-twitter" href="#" target="_blank" rel="noopener noreferrer">
+                    Xでシェア
+                </a>
+            </div>
+
+            <div class="modal-actions-secondary">
+                <button type="button" id="copyImgBtn" class="btn btn-secondary"
+                    style="width: 100%; margin-bottom: 8px;">
+                    コピー
+                </button>
+                <button type="button" id="closeModalBtn" class="btn btn-secondary" style="width: 100%;">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification (Strictly aligned with uma-new-era-title) -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/app.js?v=0.90"></script>
+</body>
+
+</html>
