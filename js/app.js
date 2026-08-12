@@ -621,8 +621,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast('HEIC/HEIF画像を変換中...', 4000);
                 try {
                     const converter = (typeof HeicTo !== 'undefined') ? HeicTo :
-                                      (typeof heicTo !== 'undefined') ? heicTo :
-                                      (window.HeicTo || window.heicTo || null);
+                        (typeof heicTo !== 'undefined') ? heicTo :
+                            (window.HeicTo || window.heicTo || null);
                     if (!converter) {
                         showToast('HEIC/HEIF画像の変換に対応していません。JPEG/PNG画像をご利用ください');
                         return;
@@ -1167,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Construct Twitter/X Share intent URL matching uma-new-era-title
         const fishName = FISH_CONFIGS[currentFishType].name;
-        const tweetText = encodeURIComponent(`ウマ娘 なんでもサーモンサモナーで${fishName}を持たせた画像を作成しました！\n#ウマ娘 #サーモンサモナー\n`);
+        const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもサーモンサモナー\n`);
         const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(location.href)}`;
         if (twitterShareBtn) {
             twitterShareBtn.href = tweetUrl;
