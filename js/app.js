@@ -1,7 +1,7 @@
 /**
  * ウマ娘 なんでもサーモンサモナー - Application Logic
  * @author @nyaftama
- * @version 0.90
+ * @version 0.90a
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -416,13 +416,15 @@ document.addEventListener('DOMContentLoaded', () => {
         activeSalmonGroup = fishData.group;
         threeScene.add(activeSalmonGroup);
 
-        // Update Camera Frustum to preserve aspect ratio
-        const boundsX = 1.15 * salmonAspect;
-        const boundsY = 1.15;
-        threeCamera.left = -boundsX;
-        threeCamera.right = boundsX;
-        threeCamera.top = boundsY;
-        threeCamera.bottom = -boundsY;
+        // Calculate maximum diagonal half-length so 2D/3D rotation NEVER clips at 90 deg or any angle
+        const diag = Math.sqrt(salmonAspect * salmonAspect + 1.0);
+        const cameraBound = diag * 1.15;
+
+        // Square frustum ensures 360-degree rotation without clipping
+        threeCamera.left = -cameraBound;
+        threeCamera.right = cameraBound;
+        threeCamera.top = cameraBound;
+        threeCamera.bottom = -cameraBound;
         threeCamera.updateProjectionMatrix();
 
         isSalmonLoaded = true;
@@ -1100,13 +1102,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderThreeSalmon() {
         if (!activeSalmonGroup || !isSalmonLoaded) return;
 
-        const sizeY = Math.round(512 * salmonState.scale);
-        const sizeX = Math.round(512 * salmonAspect * salmonState.scale);
+        const diag = Math.sqrt(salmonAspect * salmonAspect + 1.0);
+        const cameraBound = diag * 1.15;
 
-        if (threeCanvas.width !== sizeX || threeCanvas.height !== sizeY) {
-            threeCanvas.width = sizeX;
-            threeCanvas.height = sizeY;
-            threeRenderer.setSize(sizeX, sizeY);
+        // Calculate dynamic square canvas render resolution so 360-degree rotation never clips
+        const size = Math.round(512 * salmonState.scale * (cameraBound / 1.15));
+
+        if (threeCanvas.width !== size || threeCanvas.height !== size) {
+            threeCanvas.width = size;
+            threeCanvas.height = size;
+            threeRenderer.setSize(size, size);
         }
 
         const radX = (salmonState.rotX * Math.PI) / 180;
