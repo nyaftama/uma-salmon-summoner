@@ -2,7 +2,7 @@
 <html lang="ja">
 
 <head>
-    <!-- Google tag (gtag.js) -->
+    <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-2RNJ72H75W"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -13,7 +13,7 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Prevent HTML Cache -->
+    <!-- キャッシュ制御 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -30,24 +30,24 @@
     <meta name="twitter:card" content="summary_large_image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Noto+Sans+JP:wght@400;700;900&display=swap"
+        rel="stylesheet">
 
-    <!-- Three.js for 3D Salmon rendering -->
+    <!-- 外部ライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <!-- HEIC / HEIF Image Converter (heic-to) -->
     <script src="https://cdn.jsdelivr.net/npm/heic-to/dist/iife/heic-to.js"></script>
 
-    <link rel="stylesheet" href="css/style.css?v=0.91a">
+    <link rel="stylesheet" href="css/style.css?v=1.00">
 </head>
 
 <body>
 
     <div class="container">
-        <!-- Header Meta -->
+        <!-- ヘッダー情報 -->
         <div class="header-meta">
             <div class="version-group">
-                <span class="version-badge">v0.91a</span>
+                <span class="version-badge">v1.00</span>
                 <a href="https://github.com/nyaftama/uma-salmon-summoner#%E6%9B%B4%E6%96%B0%E5%B1%A5%E6%AD%B4"
                     target="_blank" rel="noopener noreferrer" class="changelog-link">更新履歴</a>
             </div>
@@ -56,7 +56,6 @@
             </a>
         </div>
 
-        <!-- Title Header -->
         <h1 class="main-title">
             ウマ娘 なんでもサーモンサモナー<br>
             <span class="sub-title">SHAKEROCKなシャケ召喚ツール</span>
@@ -96,13 +95,12 @@
             </a>
         </div>
 
-        <!-- Card 1: Image Input -->
+        <!-- カード1: 背景画像選択 -->
         <div class="card">
             <div class="card-title">
                 <span>背景画像の指定</span>
             </div>
 
-            <!-- Image Upload Dropzone -->
             <div id="dropzone" class="dropzone">
                 <svg class="dropzone-icon" viewBox="0 0 24 24">
                     <path
@@ -113,7 +111,6 @@
                 <input type="file" id="fileInput" class="file-input" accept="image/*,.heic,.heif">
             </div>
 
-            <!-- Dropzone Privacy Note -->
             <p class="dropzone-privacy-note">
                 <svg class="privacy-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -133,18 +130,21 @@
             </div>
         </div>
 
-        <!-- Card 2: Interactive Editor Canvas -->
+        <!-- カード2: キャンバスエディター -->
         <div class="card">
             <div class="card-title">
                 <span>おさかなエディター</span>
             </div>
 
-            <!-- Mode Selection Tabs -->
+            <!-- 操作モード切り替えタブ -->
             <div class="editor-tabs">
                 <button type="button" class="tab-btn active" data-mode="salmon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" />
+                        <path d="M 2 17 C 8 7 16 6 22 12" />
+                        <path d="M 2 7 C 8 17 16 18 22 12" />
+                        <path d="M 2 7 v 10" />
+                        <circle cx="16.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
                     </svg>
                     <span>おさかな移動</span>
                 </button>
@@ -154,19 +154,42 @@
                             d="M20 20H7L3 16C2.5 15.5 2.5 14.7 3 14.2L13.2 4C13.7 3.5 14.5 3.5 15 4L20 9C20.5 9.5 20.5 10.3 20 10.8L11 19.8">
                         </path>
                     </svg>
-                    <span>切り抜き</span>
+                    <span>マスク</span>
+                </button>
+                <button type="button" class="tab-btn" data-mode="logo">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"></path>
+                        <path d="M13.5 6.5l4 4"></path>
+                        <path d="M16 19h6"></path>
+                    </svg>
+                    <span>ロゴ編集</span>
+                </button>
+                <button type="button" class="tab-btn" data-mode="crop">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>背景</span>
                 </button>
             </div>
 
-            <!-- Workspace Canvas Display Container -->
+            <!-- ワークスペースキャンバス -->
             <div id="canvasWorkspace" class="canvas-workspace">
-                <!-- Drag Mode Overlay Selector (radio-group matching uma-new-era-title) -->
+                <!-- おさかな移動/回転切替 -->
                 <div id="salmonDragToggleRow" class="canvas-overlay-drag-selector">
                     <div class="radio-group">
                         <label class="radio-option">
                             <input type="radio" name="salmonDragMode" value="move" checked>
                             <span class="radio-custom"></span>
                             <span class="radio-text">移動</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="salmonDragMode" value="rotate2d">
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">回転</span>
                         </label>
                         <label class="radio-option">
                             <input type="radio" name="salmonDragMode" value="rotate">
@@ -176,18 +199,128 @@
                     </div>
                 </div>
 
-                <!-- Mask Tool Overlay Selector for Erase Mode -->
+                <!-- ロゴ移動/回転切替 -->
+                <div id="logoDragToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="logoDragMode" value="move" checked>
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">移動</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="logoDragMode" value="rotate">
+                            <span class="radio-custom"></span>
+                            <span class="radio-text">回転</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 切り抜きアスペクト比選択 -->
+                <div id="cropToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
+                    <div class="aspect-ratio-selector">
+                        <div class="custom-dropdown" id="aspectDropdown">
+                            <button type="button" class="dropdown-trigger" id="aspectDropdownTrigger"
+                                aria-haspopup="listbox" aria-expanded="false" title="アスペクト比の変更">
+                                <span class="dropdown-selected-icon" id="aspectSelectedIcon">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    </svg>
+                                </span>
+                                <span class="dropdown-selected-text" id="aspectSelectedText">元画像</span>
+                                <svg class="dropdown-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M6 9l6 6 6-6" />
+                                </svg>
+                            </button>
+                            <div class="dropdown-menu" id="aspectDropdownMenu" role="listbox">
+                                <button type="button" class="dropdown-item active" data-aspect="original" role="option">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    </svg>
+                                    <span>元画像</span>
+                                </button>
+                                <button type="button" class="dropdown-item" data-aspect="16:9" role="option">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="7.5" width="20" height="9" rx="2" />
+                                    </svg>
+                                    <span>16:9 (横長)</span>
+                                </button>
+                                <button type="button" class="dropdown-item" data-aspect="3:2" role="option">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="6" width="18" height="12" rx="2" />
+                                    </svg>
+                                    <span>3:2 (横長)</span>
+                                </button>
+                                <button type="button" class="dropdown-item" data-aspect="4:3" role="option">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+                                    </svg>
+                                    <span>4:3 (横長)</span>
+                                </button>
+                                <button type="button" class="dropdown-item" data-aspect="1:1" role="option">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="4" y="4" width="16" height="16" rx="2" />
+                                    </svg>
+                                    <span>1:1 (正方形)</span>
+                                </button>
+                                <button type="button" class="dropdown-item" data-aspect="3:4" role="option">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="5.5" y="3.5" width="13" height="17" rx="2" />
+                                    </svg>
+                                    <span>3:4 (縦長)</span>
+                                </button>
+                                <button type="button" class="dropdown-item" data-aspect="2:3" role="option">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="6" y="3" width="12" height="18" rx="2" />
+                                    </svg>
+                                    <span>2:3 (縦長)</span>
+                                </button>
+                                <button type="button" class="dropdown-item" data-aspect="9:16" role="option">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="7.5" y="2" width="9" height="20" rx="2" />
+                                    </svg>
+                                    <span>9:16 (縦長)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- マスク1つ戻す切替（左上表示） -->
+                <div id="maskUndoToggleRow" class="canvas-overlay-drag-selector canvas-overlay-left"
+                    style="display: none;">
+                    <button type="button" id="undoEraseBtn" class="overlay-btn" title="1つ戻す">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 14L4 9l5-5" />
+                            <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+                        </svg>
+                        <span>1つ戻す</span>
+                    </button>
+                </div>
+
+                <!-- マスク描画/復元切替 -->
                 <div id="maskToolToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
                     <div class="radio-group">
                         <label class="radio-option">
                             <input type="radio" name="maskToolMode" value="erase" checked>
                             <span class="radio-custom"></span>
-                            <span class="radio-text">削る</span>
+                            <span class="radio-text">追加</span>
                         </label>
                         <label class="radio-option">
                             <input type="radio" name="maskToolMode" value="restore">
                             <span class="radio-custom"></span>
-                            <span class="radio-text">元に戻す</span>
+                            <span class="radio-text">削除</span>
                         </label>
                     </div>
                 </div>
@@ -198,14 +331,76 @@
             </div>
         </div>
 
-        <!-- Card 3: Salmon Eraser Brush Controls -->
+        <!-- カード3: ロゴ設定 -->
+        <div class="card" id="logoToolsCard" style="display: none;">
+            <div class="card-title">
+                <span>ロゴ設定</span>
+            </div>
+
+            <div class="controls-grid">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="logoShow" class="checkbox-input" checked>
+                        <span>ロゴを表示する</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="logoLine1" class="form-label form-label-flex">
+                        <span>テキスト (1行目)</span>
+                        <span class="form-label-note" style="font-size: 0.75rem; color: #888;">半角英字のみ</span>
+                    </label>
+                    <input type="text" id="logoLine1" value="SHAKE" placeholder="SHAKE" maxlength="15"
+                        class="form-input">
+                    <div id="logoLine1Error" class="input-error-msg" style="display: none;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"
+                            style="vertical-align: middle; margin-right: 4px; flex-shrink: 0;">
+                            <path
+                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                        </svg>
+                        <span>エラーが発生しました</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="logoLine2" class="form-label form-label-flex">
+                        <span>テキスト (2行目)</span>
+                        <span class="form-label-note" style="font-size: 0.75rem; color: #888;">半角英字のみ</span>
+                    </label>
+                    <input type="text" id="logoLine2" value="ROCK" placeholder="ROCK" maxlength="15" class="form-input">
+                    <div id="logoLine2Error" class="input-error-msg" style="display: none;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"
+                            style="vertical-align: middle; margin-right: 4px; flex-shrink: 0;">
+                            <path
+                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                        </svg>
+                        <span>エラーが発生しました</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="logoScale" class="form-label form-label-flex">
+                        <span>ロゴサイズ（拡大縮小）</span>
+                        <span id="logoScaleVal" class="val-badge">100%</span>
+                    </label>
+                    <input type="range" id="logoScale" min="20" max="250" value="100" class="range-slider">
+                </div>
+            </div>
+
+            <div class="mask-actions-row">
+                <button type="button" id="resetLogoBtn" class="btn btn-secondary btn-small">
+                    ロゴ位置・設定をリセット
+                </button>
+            </div>
+        </div>
+
+        <!-- カード4: ブラシ設定 -->
         <div class="card" id="eraserToolsCard" style="display: none;">
             <div class="card-title">
                 <span>ブラシ設定</span>
             </div>
 
             <div class="controls-grid">
-                <!-- Brush Size Slider in 0.1% Resolution-Independent Units -->
                 <div class="form-group">
                     <label for="brushSize" class="form-label form-label-flex">
                         <span>ブラシサイズ</span>
@@ -217,24 +412,20 @@
 
             <div class="mask-actions-row">
                 <div class="btn-group-right">
-                    <button type="button" id="undoEraseBtn" class="btn btn-secondary btn-small">
-                        1つ戻す (Undo)
-                    </button>
                     <button type="button" id="clearEraseBtn" class="btn btn-secondary btn-small danger">
-                        削りを全消去 (リセット)
+                        マスクを消去
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Card 4: 3D Fish Controls -->
-        <div class="card">
+        <!-- カード5: 3Dおさかな設定 -->
+        <div class="card" id="fishToolsCard">
             <div class="card-title">
                 <span>3Dおさかなの調整</span>
             </div>
 
             <div class="salmon-controls-grid">
-                <!-- Fish Type Radio Selector -->
                 <div class="form-group" style="grid-column: 1 / -1;">
                     <label class="form-label">おさかなの種類</label>
                     <div class="radio-group" id="fishTypeSelector">
@@ -251,7 +442,6 @@
                     </div>
                 </div>
 
-                <!-- Scale Slider -->
                 <div class="form-group">
                     <label for="salmonScale" class="form-label form-label-flex">
                         <span>サイズ（拡大縮小）</span>
@@ -260,16 +450,6 @@
                     <input type="range" id="salmonScale" min="20" max="300" value="100" class="range-slider">
                 </div>
 
-                <!-- 2D Rotation Slider (Z-axis) -->
-                <div class="form-group">
-                    <label for="salmonRotZ" class="form-label form-label-flex">
-                        <span>2D回転</span>
-                        <span id="salmonRotZVal" class="val-badge">0°</span>
-                    </label>
-                    <input type="range" id="salmonRotZ" min="-180" max="180" value="0" class="range-slider">
-                </div>
-
-                <!-- 3D Bulge Depth Slider -->
                 <div class="form-group">
                     <label for="salmonBulge" class="form-label form-label-flex">
                         <span>胴体の厚み</span>
@@ -278,7 +458,6 @@
                     <input type="range" id="salmonBulge" min="10" max="100" value="35" class="range-slider">
                 </div>
 
-                <!-- Light Color Picker -->
                 <div class="form-group">
                     <label for="lightColor" class="form-label form-label-flex">
                         <span>光源の色</span>
@@ -294,7 +473,7 @@
             </div>
         </div>
 
-        <!-- Card 5: Export & Save -->
+        <!-- カード6: 画像書き出し -->
         <div class="card">
             <div class="card-title">
                 <span>完成画像の書き出し</span>
@@ -312,28 +491,30 @@
             </div>
         </div>
 
-        <!-- Footer -->
         <footer>
-            <p>※当ツールは「ウマ娘 プリティーダービー」の非公式ツールです。</p>
-            <p>&copy; 2026 nyaftama</p>
+            <p class="footer-disclaimer">
+                ※当ツールは「ウマ娘 プリティーダービー」の非公式ツールです。
+            </p>
+            <div class="footer-meta">
+                <span>&copy; 2026 nyaftama</span>
+            </div>
         </footer>
     </div>
 
-    <!-- Save / Share Modal (Strictly aligned with corner-to-ratio) -->
+    <!-- 完成画像モーダル -->
     <div id="resultModal" class="modal-overlay">
         <div class="modal-content">
-            <!-- Modal Loading State (Spinner) -->
-            <div id="modalLoading" class="modal-loading" style="display: none;">
+            <div id="modalLoading" class="modal-loading">
                 <div class="spinner"></div>
-                <span>高画質画像を生成中...</span>
+                <span>画像を生成中...</span>
             </div>
 
-            <!-- Modal Result Body -->
-            <div id="modalBodyContent">
+            <div id="modalBodyContent" class="modal-body-content" style="display: none; width: 100%;">
                 <h3 class="modal-title">画像が完成しました！</h3>
                 <p class="modal-desc">
                     画像を長押し（または右クリック）でデバイスに保存できます。<br>
-                    <span style="color: var(--primary-color); font-weight: bold;">X（Twitter）でシェアする際は、保存した画像を添付してください。</span>
+                    <span
+                        style="color: var(--primary-color); font-weight: bold;">X（Twitter）でシェアする際は、保存した画像を添付してください。</span>
                 </p>
 
                 <div class="modal-image-wrapper">
@@ -341,20 +522,20 @@
                 </div>
 
                 <div class="modal-actions">
-                    <a id="downloadBtn" class="btn btn-primary" download="salmon-summon.png">
-                        ダウンロード
-                    </a>
-                    <a id="twitterShareBtn" class="btn btn-twitter" href="#" target="_blank" rel="noopener noreferrer">
-                        Xでシェア
+                    <a id="downloadBtn" href="" download="salmon-summoner.png" class="btn btn-primary">
+                        画像をダウンロード
                     </a>
                 </div>
-
                 <div class="modal-actions-secondary">
-                    <button type="button" id="copyImgBtn" class="btn btn-secondary"
-                        style="width: 100%; margin-bottom: 8px;">
-                        コピー
+                    <button type="button" id="copyImgBtn" class="btn btn-secondary btn-full">
+                        クリップボードにコピー
                     </button>
-                    <button type="button" id="closeModalBtn" class="btn btn-secondary" style="width: 100%;">
+                    <a id="twitterShareBtn" href="" target="_blank" rel="noopener noreferrer"
+                        class="btn btn-twitter btn-full" style="margin-top: 10px;">
+                        <span>Xでポストする</span>
+                    </a>
+                    <button type="button" id="closeModalBtn" class="btn btn-secondary btn-full"
+                        style="margin-top: 10px;">
                         閉じる
                     </button>
                 </div>
@@ -362,10 +543,10 @@
         </div>
     </div>
 
-    <!-- Toast Notification (Strictly aligned with uma-new-era-title) -->
+    <!-- トースト通知 -->
     <div id="toast" class="toast"></div>
 
-    <script src="js/app.js?v=0.91a"></script>
+    <script src="js/app.js?v=1.00"></script>
 </body>
 
 </html>

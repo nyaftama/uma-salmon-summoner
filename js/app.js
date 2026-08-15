@@ -1,11 +1,11 @@
 /**
- * ウマ娘 なんでもサーモンサモナー - Application Logic
+ * ウマ娘 なんでもサーモンサモナー - アプリケーションロジック
  * @author @nyaftama
- * @version 0.91a
+ * @version 1.00
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Elements ---
+    // --- DOM要素 ---
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('fileInput');
     const pasteImgBtn = document.getElementById('pasteImgBtn');
@@ -20,19 +20,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tabBtns = document.querySelectorAll('.tab-btn');
     const salmonDragToggleRow = document.getElementById('salmonDragToggleRow');
+    const logoDragToggleRow = document.getElementById('logoDragToggleRow');
+    const cropToggleRow = document.getElementById('cropToggleRow');
     const maskToolToggleRow = document.getElementById('maskToolToggleRow');
+    const maskUndoToggleRow = document.getElementById('maskUndoToggleRow');
     const overlaySelectors = document.querySelectorAll('.canvas-overlay-drag-selector');
     const dragModeRadioInputs = document.querySelectorAll('input[name="salmonDragMode"]');
+    const logoDragModeRadioInputs = document.querySelectorAll('input[name="logoDragMode"]');
     const maskToolRadioInputs = document.querySelectorAll('input[name="maskToolMode"]');
     const fishTypeRadioInputs = document.querySelectorAll('input[name="fishType"]');
 
+    // 切り抜きアスペクト比ドロップダウン要素
+    const aspectDropdown = document.getElementById('aspectDropdown');
+    const aspectDropdownTrigger = document.getElementById('aspectDropdownTrigger');
+    const aspectSelectedIcon = document.getElementById('aspectSelectedIcon');
+    const aspectSelectedText = document.getElementById('aspectSelectedText');
+    const aspectDropdownMenu = document.getElementById('aspectDropdownMenu');
+
+    // ツールカード
+    const logoToolsCard = document.getElementById('logoToolsCard');
     const eraserToolsCard = document.getElementById('eraserToolsCard');
+    const fishToolsCard = document.getElementById('fishToolsCard');
+
+    // ブラシ設定要素
     const brushSizeInput = document.getElementById('brushSize');
     const brushSizeVal = document.getElementById('brushSizeVal');
     const undoEraseBtn = document.getElementById('undoEraseBtn');
     const clearEraseBtn = document.getElementById('clearEraseBtn');
 
-    // Salmon Controls
+    // ロゴ設定要素
+    const logoShowInput = document.getElementById('logoShow');
+    const logoLine1Input = document.getElementById('logoLine1');
+    const logoLine2Input = document.getElementById('logoLine2');
+    const logoScaleInput = document.getElementById('logoScale');
+    const logoScaleVal = document.getElementById('logoScaleVal');
+    const resetLogoBtn = document.getElementById('resetLogoBtn');
+
+    // おさかな設定要素
     const salmonScaleInput = document.getElementById('salmonScale');
     const salmonScaleVal = document.getElementById('salmonScaleVal');
     const salmonRotZInput = document.getElementById('salmonRotZ');
@@ -42,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lightColorInput = document.getElementById('lightColor');
     const resetSalmonBtn = document.getElementById('resetSalmonBtn');
 
-    // Export Controls & Modal
+    // エクスポート・モーダル要素
     const generateBtn = document.getElementById('generateBtn');
     const resultModal = document.getElementById('resultModal');
     const modalLoading = document.getElementById('modalLoading');
@@ -54,10 +78,159 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyImgBtn = document.getElementById('copyImgBtn');
     const toast = document.getElementById('toast');
 
-    const MAX_IMAGE_DIMENSION = 1920; // Auto-downscale high-res images to max 1920px for optimal performance
+    const MAX_IMAGE_DIMENSION = 1920; // 画像の最大解像度
+    const FALLBACK_NG_WORDS_B64 = "";
     let brushPreviewTimeout;
+    let currentAspectKey = 'original';
 
-    // Prevent click & touch event propagation on canvas overlay UI elements
+    // --- NGワード判定・英字入力バリデーション ---
+    let ngWords = [];
+    let isNgWordDetected = false;
+
+    function decodeTripleBase64(b64Str) {
+        try {
+            const cleanStr = String(b64Str).replace(/\s+/g, '');
+            const pass1 = atob(cleanStr).replace(/\s+/g, '');
+            const pass2 = atob(pass1).replace(/\s+/g, '');
+            const pass3Binary = atob(pass2);
+            const bytes = new Uint8Array(pass3Binary.length);
+            for (let j = 0; j < pass3Binary.length; j++) {
+                bytes[j] = pass3Binary.charCodeAt(j);
+            }
+            return new TextDecoder('utf-8').decode(bytes);
+        } catch (e) {
+            console.warn('Failed to decode Base64:', e);
+            return '';
+        }
+    }
+
+    async function loadNgWords() {
+        let loadedText = '';
+        try {
+            const versionBadge = document.querySelector('.version-badge');
+            const version = versionBadge ? versionBadge.textContent.trim().replace(/^v/, '') : '';
+            const fetchUrl = version ? `data/ng_words.txt?v=${version}` : 'data/ng_words.txt';
+            const response = await fetch(fetchUrl);
+            if (response.ok) {
+                const rawText = await response.text();
+                loadedText = decodeTripleBase64(rawText);
+            }
+        } catch (err) {
+            console.warn('Could not fetch ng_words.txt:', err);
+        }
+
+        if (!loadedText && FALLBACK_NG_WORDS_B64) {
+            loadedText = decodeTripleBase64(FALLBACK_NG_WORDS_B64);
+        }
+
+        if (loadedText) {
+            ngWords = loadedText
+                .split(/\r?\n/)
+                .map(w => w.trim())
+                .filter(w => w.length > 0 && !w.includes('\uFFFD') && /^[\u3040-\u30FF\u4E00-\u9FAF\uFF00-\uFFEF\w]+$/u.test(w));
+        }
+
+        validateAllInputs();
+    }
+
+    function normalizeText(str) {
+        if (!str) return '';
+        let normalized = str.normalize('NFKC').toLowerCase();
+        return normalized.replace(/[\u30a1-\u30f6]/g, (ch) => {
+            return String.fromCharCode(ch.charCodeAt(0) - 0x60);
+        });
+    }
+
+    function hasEmoji(str) {
+        if (!str) return false;
+        try {
+            if (/\p{Extended_Pictographic}/u.test(str)) {
+                return true;
+            }
+        } catch (e) { }
+
+        const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2300}-\u{23FF}]/u;
+        return emojiRegex.test(str);
+    }
+
+    function checkTextError(text) {
+        if (!text || text.trim().length === 0) return { error: false, type: null };
+        if (hasEmoji(text)) return { error: true, type: 'emoji' };
+
+        if (ngWords.length > 0) {
+            const normalizedText = normalizeText(text);
+            for (const word of ngWords) {
+                const normalizedWord = normalizeText(word);
+                if (normalizedWord && normalizedText.includes(normalizedWord)) {
+                    return { error: true, type: 'ng' };
+                }
+            }
+        }
+        return { error: false, type: null };
+    }
+
+    function validateAllInputs() {
+        const line1 = logoState.line1 || '';
+        const line2 = logoState.line2 || '';
+
+        const line1Result = checkTextError(line1);
+        const line2Result = checkTextError(line2);
+
+        const combinedText = (line1 + line2).replace(/\s+/g, '');
+        const combinedResult = checkTextError(combinedText);
+
+        const isError = line1Result.error || line2Result.error || combinedResult.error;
+        isNgWordDetected = isError;
+
+        const line1ErrorEl = document.getElementById('logoLine1Error');
+        const line2ErrorEl = document.getElementById('logoLine2Error');
+
+        if (logoLine1Input) {
+            if (line1Result.error || (combinedResult.error && !line2Result.error)) {
+                logoLine1Input.classList.add('input-error');
+                if (line1ErrorEl) {
+                    line1ErrorEl.style.display = 'flex';
+                    const span = line1ErrorEl.querySelector('span');
+                    if (span) {
+                        if (line1Result.type === 'emoji') {
+                            span.textContent = '絵文字は使用できません';
+                        } else {
+                            span.textContent = '不適切な文字または表現が含まれています';
+                        }
+                    }
+                }
+            } else {
+                logoLine1Input.classList.remove('input-error');
+                if (line1ErrorEl) line1ErrorEl.style.display = 'none';
+            }
+        }
+
+        if (logoLine2Input) {
+            if (line2Result.error) {
+                logoLine2Input.classList.add('input-error');
+                if (line2ErrorEl) {
+                    line2ErrorEl.style.display = 'flex';
+                    const span = line2ErrorEl.querySelector('span');
+                    if (span) {
+                        if (line2Result.type === 'emoji') {
+                            span.textContent = '絵文字は使用できません';
+                        } else {
+                            span.textContent = '不適切な文字または表現が含まれています';
+                        }
+                    }
+                }
+            } else {
+                logoLine2Input.classList.remove('input-error');
+                if (line2ErrorEl) line2ErrorEl.style.display = 'none';
+            }
+        }
+
+        requestRender();
+    }
+
+    loadNgWords();
+
+    // キャンバスオーバーレイ要素でのイベント伝播防止
     overlaySelectors.forEach(overlay => {
         ['mousedown', 'mousemove', 'mouseup', 'touchstart', 'touchmove', 'touchend', 'click'].forEach(eventType => {
             overlay.addEventListener(eventType, (e) => {
@@ -66,7 +239,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Smooth Scroll Helper to "おさかなエディター" (Matching uma-new-era-title)
+    // Permanent Marker フォント読み込み完了時の再描画
+    if (document.fonts) {
+        document.fonts.load("900 48px 'Permanent Marker'").then(() => {
+            requestRender();
+        }).catch(() => { });
+    }
+
+    // エディター位置へのスムーズスクロール
     function scrollToEditor() {
         const editorCard = canvasWorkspace ? (canvasWorkspace.closest('.card') || canvasWorkspace) : null;
         if (editorCard) {
@@ -81,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Auto-downscale high-resolution images so the longest side does not exceed 1920px
+    // 高解像度画像のリサイズ処理（長辺最大1920px）
     function resizeImageIfNeeded(img) {
         const maxDim = Math.max(img.width, img.height);
         if (maxDim <= MAX_IMAGE_DIMENSION) {
@@ -107,12 +287,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Bonito Flakes Particle System (鰹の削り節エフェクト) ---
+    // --- 鰹の削り節エフェクトパーティクル ---
     let bonitoParticles = [];
     let isParticleLoopRunning = false;
 
     function spawnBonitoFlakes(x, y, actualBrushSize) {
-        const count = 2 + Math.floor(Math.random() * 2); // 2-3 flakes per stroke step
+        const count = 2 + Math.floor(Math.random() * 2);
         const colors = [
             'rgba(215, 120, 70, 0.85)',
             'rgba(190, 85, 40, 0.8)',
@@ -129,14 +309,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 x: x + Math.cos(angle) * spread,
                 y: y + Math.sin(angle) * spread,
                 vx: Math.cos(angle) * speed * 0.4 + (Math.random() - 0.5) * 1.2,
-                vy: Math.sin(angle) * speed * 0.4 - 1.2 - Math.random() * 1.5, // gentle upward burst
+                vy: Math.sin(angle) * speed * 0.4 - 1.2 - Math.random() * 1.5,
                 rot: Math.random() * Math.PI * 2,
                 vRot: (Math.random() - 0.5) * 0.25,
-                size: 5 + Math.random() * 8, // 5px to 13px size
+                size: 5 + Math.random() * 8,
                 scaleX: 1.0 + (Math.random() - 0.5) * 0.4,
                 scaleY: 0.4 + (Math.random() - 0.5) * 0.2,
                 life: 1.0,
-                decay: 0.035 + Math.random() * 0.025, // fades out in ~0.3s to 0.5s
+                decay: 0.035 + Math.random() * 0.025,
                 alpha: 0.8 + Math.random() * 0.2,
                 color: colors[Math.floor(Math.random() * colors.length)]
             });
@@ -159,8 +339,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const p = bonitoParticles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.12; // gentle gravity
-            p.vx *= 0.96; // air resistance
+            p.vy += 0.12;
+            p.vx *= 0.96;
             p.rot += p.vRot;
             p.life -= p.decay;
 
@@ -185,13 +365,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.scale(p.scaleX, p.scaleY);
         ctx.globalAlpha = Math.max(0, p.life * p.alpha);
 
-        // Curved shaving ellipse body
         ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.ellipse(0, 0, p.size, p.size * 0.45, 0.25, 0, Math.PI * 2);
         ctx.fill();
 
-        // Delicate translucent highlight edge
         ctx.strokeStyle = 'rgba(255, 220, 180, 0.45)';
         ctx.lineWidth = 1;
         ctx.stroke();
@@ -199,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.restore();
     }
 
-    // --- Fish Asset Definitions ---
+    // --- おさかなアセット定義 ---
     const FISH_CONFIGS = {
         tuna: {
             name: 'Thisマグロ',
@@ -212,41 +390,53 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let currentFishType = 'tuna';
-    const fishCache = {}; // Cache processed Three.js assets per fish type
-    let isSalmonLoaded = false; // State flag for loaded 3D fish mesh
+    const fishCache = {};
+    let isSalmonLoaded = false;
 
-    // --- State Variables ---
+    // --- アプリケーション状態 ---
     let bgImage = null;
     let salmonAspect = 2.0;
 
-    // Salmon Erase Mask Offscreen Canvas
     let salmonEraseCanvas = document.createElement('canvas');
     let salmonEraseCtx = salmonEraseCanvas.getContext('2d');
 
-    // State
-    let currentMode = 'salmon'; // 'salmon' | 'eraseSalmon'
-    let salmonDragMode = 'move'; // 'move' | 'rotate'
-    let currentTool = 'erase'; // 'erase' | 'restore'
-    let brushSizePct = 3.0; // 0.1% resolution-independent unit
+    let currentMode = 'salmon';
+    let salmonDragMode = 'move';
+    let logoDragMode = 'move';
+    let currentTool = 'erase';
+    let brushSizePct = 3.0;
     let isDrawing = false;
     let lastDrawPos = null;
-    let lastScreenPos = null; // Screen-space drag coordinate for resolution-independent rotation
+    let lastScreenPos = null;
 
-    // Undo stack for salmon eraser
     const eraseUndoStack = [];
 
-    // Salmon 3D State (Default bulge 0.35 = 35%)
+    let bgOffsetX = 0;
+    let bgOffsetY = 0;
+
     const salmonState = {
         x: 0,
         y: 0,
         scale: 1.0,
-        bulge: 0.35, // 35% default depth
+        bulge: 0.35,
         rotX: 0,
         rotY: 0,
-        rotZ: 0 // 2D rotation angle around Z-axis
+        rotZ: 0,
+        handleRotZ: 0
     };
 
-    // Three.js Setup
+    const logoState = {
+        visible: true,
+        line1: 'SHAKE',
+        line2: 'ROCK',
+        x: 0,
+        y: 0,
+        scale: 1.0,
+        rotZ: -10,
+        handleRotZ: 10
+    };
+
+    // --- Three.js 初期化 ---
     let threeScene, threeCamera, threeRenderer;
     let ambientLight, dirLight;
     let activeSalmonGroup = null;
@@ -254,19 +444,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initThreeJS();
 
-    // Load initial default fish ("tuna")
     loadFishAsset('tuna', () => {
-        loadFishAsset('salmon'); // Pre-cache salmon in background
+        loadFishAsset('salmon');
     });
 
-    // Calculate resolution-independent brush size in canvas pixels
     function getActualBrushPixelSize() {
         if (!mainCanvas.width) return 30;
         const baseDim = Math.max(mainCanvas.width, mainCanvas.height);
         return Math.max(2, (brushSizePct / 100) * baseDim);
     }
 
-    // Schedule render on next frame to ensure WebGL buffer is fully flushed & compiled
     function requestRender() {
         renderAll();
         requestAnimationFrame(() => {
@@ -274,7 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Three.js Initialization ---
     function initThreeJS() {
         threeScene = new THREE.Scene();
         threeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
@@ -288,7 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         threeRenderer.setClearColor(0x000000, 0);
 
-        // Lighting
         ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
         threeScene.add(ambientLight);
 
@@ -314,7 +499,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const img = texture.image;
                 const aspect = img.width / img.height;
 
-                // 1. Create pre-flipped texture for back side
                 const flippedCanvas = document.createElement('canvas');
                 flippedCanvas.width = img.width;
                 flippedCanvas.height = img.height;
@@ -327,13 +511,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 textureBack.minFilter = THREE.LinearFilter;
                 textureBack.magFilter = THREE.LinearFilter;
 
-                // 2. Generate Distance Transform Map for Front
                 const distCanvasFront = generateDistanceTransformCanvas(img);
                 const distanceTextureFront = new THREE.CanvasTexture(distCanvasFront);
                 distanceTextureFront.minFilter = THREE.LinearFilter;
                 distanceTextureFront.magFilter = THREE.LinearFilter;
 
-                // 3. Generate Matching Flipped Distance Transform Map for Back
                 const distCanvasBack = document.createElement('canvas');
                 distCanvasBack.width = distCanvasFront.width;
                 distCanvasBack.height = distCanvasFront.height;
@@ -346,7 +528,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 distanceTextureBack.minFilter = THREE.LinearFilter;
                 distanceTextureBack.magFilter = THREE.LinearFilter;
 
-                // 4. Build 3D Mesh Group
                 const group = build3DFishGroup(aspect, texture, textureBack, distanceTextureFront, distanceTextureBack);
 
                 fishCache[type] = {
@@ -373,7 +554,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const geometry = new THREE.PlaneGeometry(meshWidth, meshHeight, 128, 128);
 
-        // alphaTest: 0.2 discards transparent edge cliff polygons completely
         const frontMaterial = new THREE.MeshStandardMaterial({
             map: textureFront,
             displacementMap: distFront,
@@ -427,11 +607,9 @@ document.addEventListener('DOMContentLoaded', () => {
         activeSalmonGroup = fishData.group;
         threeScene.add(activeSalmonGroup);
 
-        // Calculate maximum diagonal half-length so 2D/3D rotation NEVER clips at 90 deg or any angle
         const diag = Math.sqrt(salmonAspect * salmonAspect + 1.0);
         const cameraBound = diag * 1.15;
 
-        // Square frustum ensures 360-degree rotation without clipping
         threeCamera.left = -cameraBound;
         threeCamera.right = cameraBound;
         threeCamera.top = cameraBound;
@@ -443,7 +621,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!bgImage) {
             loadDemoImage();
         } else {
-            // Recalculate scale for new fish aspect ratio
             const currentPct = parseInt(salmonScaleInput.value, 10) || 100;
             const baseScale = getBaseSalmonScale(bgImage.width);
             salmonState.scale = (currentPct / 100) * baseScale;
@@ -451,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Distance Transform Map Generator for Contour Bulging ---
+    // --- 輪郭立体化用ディスタンスマップ生成 ---
     function generateDistanceTransformCanvas(img) {
         const width = img.width;
         const height = img.height;
@@ -465,7 +642,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const imgData = srcCtx.getImageData(0, 0, width, height);
         const data = imgData.data;
 
-        // Downsampled grid for fast distance computation
         const scale = Math.min(1.0, 300 / Math.max(width, height));
         const sw = Math.round(width * scale);
         const sh = Math.round(height * scale);
@@ -486,7 +662,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 2-pass Chamfer distance transform (8-neighbor)
         for (let y = 0; y < sh; y++) {
             for (let x = 0; x < sw; x++) {
                 const idx = y * sw + x;
@@ -531,7 +706,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let norm = grid[i] / maxVal;
             if (norm > 1.0) norm = 1.0;
 
-            // Ultra-smooth sine curve + exponent power falloff prevents steep edge cliffs
             norm = Math.sin(norm * Math.PI * 0.5);
             norm = Math.pow(norm, 1.4);
 
@@ -547,7 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return outCanvas;
     }
 
-    // --- Image Handling & Upload (HEIC/HEIF Supported matching uma-new-era-title) ---
+    // --- 画像の読み込み・処理 ---
     dropzone.addEventListener('click', () => fileInput.click());
 
     fileInput.addEventListener('change', (e) => {
@@ -675,7 +849,6 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(blob);
     }
 
-    // Default plain background canvas
     function loadDemoImage() {
         const canvas = document.createElement('canvas');
         canvas.width = 800;
@@ -691,13 +864,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getBaseSalmonScale(canvasWidth) {
-        // 100% baseline scale is set to 1.45x of previous base size
         const targetWidth = canvasWidth * 0.90 * 1.45;
         return targetWidth / (512 * salmonAspect);
     }
 
     function setBgImage(img, shouldScroll = true) {
         bgImage = img;
+        currentAspectKey = 'original';
 
         mainCanvas.width = img.width;
         mainCanvas.height = img.height;
@@ -712,6 +885,23 @@ document.addEventListener('DOMContentLoaded', () => {
         salmonState.y = img.height / 2;
         salmonState.scale = getBaseSalmonScale(img.width);
 
+        logoState.x = img.width / 2;
+        logoState.y = img.height * 0.78;
+
+        if (aspectDropdownMenu) {
+            const items = aspectDropdownMenu.querySelectorAll('.dropdown-item');
+            items.forEach(item => {
+                const isOrig = item.getAttribute('data-aspect') === 'original';
+                item.classList.toggle('active', isOrig);
+                if (isOrig) {
+                    const itemSvg = item.querySelector('svg');
+                    const itemSpan = item.querySelector('span');
+                    if (itemSvg && aspectSelectedIcon) aspectSelectedIcon.innerHTML = itemSvg.outerHTML;
+                    if (itemSpan && aspectSelectedText) aspectSelectedText.textContent = itemSpan.textContent;
+                }
+            });
+        }
+
         updateSalmonSliderUI();
         updateBrushCursorSize();
         requestRender();
@@ -721,7 +911,109 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Mode & Tool Controls ---
+    // --- アスペクト比変更ハンドラー ---
+    function applyAspectRatio(aspectKey) {
+        if (!bgImage) return;
+        currentAspectKey = aspectKey;
+        bgOffsetX = 0;
+        bgOffsetY = 0;
+
+        let targetW = bgImage.width;
+        let targetH = bgImage.height;
+
+        if (aspectKey !== 'original') {
+            const parts = aspectKey.split(':').map(Number);
+            const targetRatio = parts[0] / parts[1];
+            const imgRatio = bgImage.width / bgImage.height;
+
+            if (targetRatio >= imgRatio) {
+                targetW = bgImage.width;
+                targetH = Math.round(bgImage.width / targetRatio);
+            } else {
+                targetH = bgImage.height;
+                targetW = Math.round(bgImage.height * targetRatio);
+            }
+        }
+
+        const oldW = mainCanvas.width;
+        const oldH = mainCanvas.height;
+
+        mainCanvas.width = targetW;
+        mainCanvas.height = targetH;
+        overlayCanvas.width = targetW;
+        overlayCanvas.height = targetH;
+
+        salmonState.x = targetW / 2;
+        salmonState.y = targetH / 2;
+        logoState.x = targetW / 2;
+        logoState.y = targetH * 0.78;
+
+        const oldEraseCanvas = document.createElement('canvas');
+        oldEraseCanvas.width = salmonEraseCanvas.width;
+        oldEraseCanvas.height = salmonEraseCanvas.height;
+        const oldCtx = oldEraseCanvas.getContext('2d');
+        oldCtx.drawImage(salmonEraseCanvas, 0, 0);
+
+        salmonEraseCanvas.width = targetW;
+        salmonEraseCanvas.height = targetH;
+        salmonEraseCtx.clearRect(0, 0, targetW, targetH);
+        const offX = (targetW - oldW) / 2;
+        const offY = (targetH - oldH) / 2;
+        salmonEraseCtx.drawImage(oldEraseCanvas, offX, offY);
+
+        updateBrushCursorSize();
+        requestRender();
+    }
+
+    // カスタムドロップダウンのイベントリスナー
+    if (aspectDropdownTrigger && aspectDropdown) {
+        aspectDropdownTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = aspectDropdown.classList.contains('open');
+            if (isOpen) {
+                aspectDropdown.classList.remove('open');
+                aspectDropdownTrigger.setAttribute('aria-expanded', 'false');
+            } else {
+                aspectDropdown.classList.add('open');
+                aspectDropdownTrigger.setAttribute('aria-expanded', 'true');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (aspectDropdown && !aspectDropdown.contains(e.target)) {
+                aspectDropdown.classList.remove('open');
+                aspectDropdownTrigger.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        if (aspectDropdownMenu) {
+            const items = aspectDropdownMenu.querySelectorAll('.dropdown-item');
+            items.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    items.forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+
+                    const chosenAspect = item.getAttribute('data-aspect');
+                    applyAspectRatio(chosenAspect);
+
+                    const itemSvg = item.querySelector('svg');
+                    const itemSpan = item.querySelector('span');
+                    if (itemSvg && aspectSelectedIcon) {
+                        aspectSelectedIcon.innerHTML = itemSvg.outerHTML;
+                    }
+                    if (itemSpan && aspectSelectedText) {
+                        aspectSelectedText.textContent = itemSpan.textContent;
+                    }
+
+                    aspectDropdown.classList.remove('open');
+                    aspectDropdownTrigger.setAttribute('aria-expanded', 'false');
+                });
+            });
+        }
+    }
+
+    // --- モード切替 ---
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             tabBtns.forEach(b => b.classList.remove('active'));
@@ -730,33 +1022,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (currentMode === 'salmon') {
                 salmonDragToggleRow.style.display = 'flex';
+                logoDragToggleRow.style.display = 'none';
+                if (cropToggleRow) cropToggleRow.style.display = 'none';
                 maskToolToggleRow.style.display = 'none';
+                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
                 eraserToolsCard.style.display = 'none';
+                logoToolsCard.style.display = 'none';
+                if (fishToolsCard) fishToolsCard.style.display = 'block';
+            } else if (currentMode === 'logo') {
+                salmonDragToggleRow.style.display = 'none';
+                logoDragToggleRow.style.display = 'flex';
+                if (cropToggleRow) cropToggleRow.style.display = 'none';
+                maskToolToggleRow.style.display = 'none';
+                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
+                eraserToolsCard.style.display = 'none';
+                logoToolsCard.style.display = 'block';
+                if (fishToolsCard) fishToolsCard.style.display = 'none';
+            } else if (currentMode === 'crop') {
+                salmonDragToggleRow.style.display = 'none';
+                logoDragToggleRow.style.display = 'none';
+                if (cropToggleRow) cropToggleRow.style.display = 'flex';
+                maskToolToggleRow.style.display = 'none';
+                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
+                eraserToolsCard.style.display = 'none';
+                logoToolsCard.style.display = 'none';
+                if (fishToolsCard) fishToolsCard.style.display = 'none';
+                showToast('ドラッグして背景画像を移動できます');
             } else if (currentMode === 'eraseSalmon') {
                 salmonDragToggleRow.style.display = 'none';
+                logoDragToggleRow.style.display = 'none';
+                if (cropToggleRow) cropToggleRow.style.display = 'none';
                 maskToolToggleRow.style.display = 'flex';
+                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'flex';
                 eraserToolsCard.style.display = 'block';
+                logoToolsCard.style.display = 'none';
+                if (fishToolsCard) fishToolsCard.style.display = 'block';
             }
 
             requestRender();
         });
     });
 
-    // Radio Group Drag Mode Toggle (Move vs Rotate)
     dragModeRadioInputs.forEach(radio => {
         radio.addEventListener('change', (e) => {
             salmonDragMode = e.target.value;
+            renderAll();
         });
     });
 
-    // Radio Group Mask Tool Toggle (Erase vs Restore overlay)
+    logoDragModeRadioInputs.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            logoDragMode = e.target.value;
+            renderAll();
+        });
+    });
+
     maskToolRadioInputs.forEach(radio => {
         radio.addEventListener('change', (e) => {
             currentTool = e.target.value;
         });
     });
 
-    // Radio Group Fish Type Switcher (Thisマグロ vs シャケ)
     fishTypeRadioInputs.forEach(radio => {
         radio.addEventListener('change', (e) => {
             activateFishType(e.target.value);
@@ -764,13 +1090,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Interactive Brush Size Slider Preview Handling
     brushSizeInput.addEventListener('input', (e) => {
         brushSizePct = parseFloat(e.target.value) || 3.0;
         brushSizeVal.textContent = `${brushSizePct.toFixed(1)}%`;
         updateBrushCursorSize();
 
-        // Display live brush circle preview in the center of the canvas during slider drag
         if (currentMode === 'eraseSalmon') {
             const workspaceRect = canvasWorkspace.getBoundingClientRect();
             brushCursor.style.left = `${workspaceRect.width / 2}px`;
@@ -787,7 +1111,75 @@ document.addEventListener('DOMContentLoaded', () => {
     undoEraseBtn.addEventListener('click', () => undoSalmonErase());
     clearEraseBtn.addEventListener('click', () => clearSalmonErase());
 
-    // --- Salmon 3D Controls (Scale, 2D Rotation, Bulge, & Light Color) ---
+    // --- ロゴ設定コントロール ---
+    if (logoShowInput) {
+        logoShowInput.addEventListener('change', (e) => {
+            logoState.visible = e.target.checked;
+            requestRender();
+        });
+    }
+
+    if (logoLine1Input) {
+        logoLine1Input.addEventListener('input', (e) => {
+            const cleanVal = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+            if (cleanVal !== e.target.value) {
+                e.target.value = cleanVal;
+            }
+            logoState.line1 = e.target.value;
+            validateAllInputs();
+        });
+    }
+
+    if (logoLine2Input) {
+        logoLine2Input.addEventListener('input', (e) => {
+            const cleanVal = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+            if (cleanVal !== e.target.value) {
+                e.target.value = cleanVal;
+            }
+            logoState.line2 = e.target.value;
+            validateAllInputs();
+        });
+    }
+
+    if (logoScaleInput) {
+        logoScaleInput.addEventListener('input', (e) => {
+            const pct = parseInt(e.target.value, 10) || 100;
+            logoScaleVal.textContent = `${pct}%`;
+            logoState.scale = pct / 100;
+            requestRender();
+        });
+    }
+
+    if (resetLogoBtn) {
+        resetLogoBtn.addEventListener('click', () => {
+            resetLogoState();
+            requestRender();
+            showToast('ロゴ位置・設定をリセットしました');
+        });
+    }
+
+    function resetLogoState() {
+        if (bgImage) {
+            logoState.x = mainCanvas.width / 2;
+            logoState.y = mainCanvas.height * 0.78;
+        }
+        logoState.visible = true;
+        logoState.line1 = 'SHAKE';
+        logoState.line2 = 'ROCK';
+        logoState.scale = 1.0;
+        logoState.rotZ = -10;
+        logoState.handleRotZ = 10;
+
+        if (logoShowInput) logoShowInput.checked = true;
+        if (logoLine1Input) logoLine1Input.value = 'SHAKE';
+        if (logoLine2Input) logoLine2Input.value = 'ROCK';
+        if (logoScaleInput) {
+            logoScaleInput.value = 100;
+            logoScaleVal.textContent = '100%';
+        }
+    }
+
+    // --- 3Dおさかなコントロール ---
     salmonScaleInput.addEventListener('input', (e) => {
         const pct = parseInt(e.target.value, 10);
         salmonScaleVal.textContent = `${pct}%`;
@@ -798,19 +1190,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    salmonRotZInput.addEventListener('input', (e) => {
-        const deg = parseInt(e.target.value, 10);
-        salmonRotZVal.textContent = `${deg}°`;
-        salmonState.rotZ = deg;
-        renderAll();
-    });
+    if (salmonRotZInput) {
+        salmonRotZInput.addEventListener('input', (e) => {
+            const deg = parseInt(e.target.value, 10);
+            if (salmonRotZVal) salmonRotZVal.textContent = `${deg}°`;
+            salmonState.rotZ = deg;
+            renderAll();
+        });
+    }
 
     salmonBulgeInput.addEventListener('input', (e) => {
         const pct = parseInt(e.target.value, 10);
         salmonBulgeVal.textContent = `${pct}%`;
         salmonState.bulge = pct / 100;
 
-        // Apply new displacementScale across all cached fish materials
         Object.keys(fishCache).forEach(type => {
             const grp = fishCache[type].group;
             if (grp && grp.children) {
@@ -825,12 +1218,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
 
-    // Light Color Picker Listener
     if (lightColorInput) {
         lightColorInput.addEventListener('input', (e) => {
             const hexColor = e.target.value;
-            if (dirLight) dirLight.color.set(hexColor);
-            if (ambientLight) ambientLight.color.set(hexColor);
+            if (dirLight) dirLight.color.set('#ffffff');
+            if (ambientLight) ambientLight.color.set('#ffffff');
             renderAll();
         });
     }
@@ -838,25 +1230,25 @@ document.addEventListener('DOMContentLoaded', () => {
     resetSalmonBtn.addEventListener('click', () => {
         resetSalmonState();
         requestRender();
-        showToast('位置・角度・ライティングをリセットしました');
+        showToast('位置・角度・色をリセットしました');
     });
 
     function resetSalmonState() {
         if (bgImage) {
-            salmonState.x = bgImage.width / 2;
-            salmonState.y = bgImage.height / 2;
+            salmonState.x = mainCanvas.width / 2;
+            salmonState.y = mainCanvas.height / 2;
             salmonState.scale = getBaseSalmonScale(bgImage.width);
         }
         salmonState.bulge = 0.35;
         salmonState.rotX = 0;
         salmonState.rotY = 0;
         salmonState.rotZ = 0;
+        salmonState.handleRotZ = 0;
 
         if (lightColorInput) lightColorInput.value = '#ffffff';
         if (dirLight) dirLight.color.set('#ffffff');
         if (ambientLight) ambientLight.color.set('#ffffff');
 
-        // Reset material displacement scale across cache
         Object.keys(fishCache).forEach(type => {
             const grp = fishCache[type].group;
             if (grp && grp.children) {
@@ -874,16 +1266,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSalmonSliderUI() {
         salmonScaleInput.value = 100;
         salmonScaleVal.textContent = '100%';
-        salmonRotZInput.value = 0;
-        salmonRotZVal.textContent = '0°';
+        if (salmonRotZInput) salmonRotZInput.value = 0;
+        if (salmonRotZVal) salmonRotZVal.textContent = '0°';
         salmonBulgeInput.value = Math.round(salmonState.bulge * 100);
         salmonBulgeVal.textContent = `${Math.round(salmonState.bulge * 100)}%`;
         if (lightColorInput) lightColorInput.value = '#ffffff';
     }
 
-    // --- Interactive Canvas Mouse & Touch Drag Handling ---
+    // --- キャンバスドラッグ操作 ---
     canvasWorkspace.addEventListener('mouseenter', () => {
-        if (currentMode !== 'salmon') brushCursor.style.display = 'block';
+        if (currentMode === 'eraseSalmon') brushCursor.style.display = 'block';
     });
 
     canvasWorkspace.addEventListener('mouseleave', () => {
@@ -906,16 +1298,18 @@ document.addEventListener('DOMContentLoaded', () => {
         lastDrawPos = pos;
         lastScreenPos = { x: e.clientX, y: e.clientY };
 
-        if (currentMode !== 'salmon') {
+        if (currentMode === 'eraseSalmon') {
             saveSalmonEraseUndoState();
             handleDrawStroke(pos, e);
         }
+        renderOverlay();
     });
 
     window.addEventListener('mouseup', () => {
         isDrawing = false;
         lastDrawPos = null;
         lastScreenPos = null;
+        if (bgImage) renderOverlay();
     });
 
     canvasWorkspace.addEventListener('touchstart', (e) => {
@@ -926,10 +1320,11 @@ document.addEventListener('DOMContentLoaded', () => {
         lastDrawPos = pos;
         lastScreenPos = { x: touch.clientX, y: touch.clientY };
 
-        if (currentMode !== 'salmon') {
+        if (currentMode === 'eraseSalmon') {
             saveSalmonEraseUndoState();
             handleDrawStroke(pos, touch);
         }
+        renderOverlay();
     }, { passive: false });
 
     canvasWorkspace.addEventListener('touchmove', (e) => {
@@ -942,7 +1337,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const dx = pos.x - lastDrawPos.x;
             const dy = pos.y - lastDrawPos.y;
 
-            // Screen-space drag delta for resolution-independent rotation sensitivity
             const screenDx = touch.clientX - lastScreenPos.x;
             const screenDy = touch.clientY - lastScreenPos.y;
 
@@ -950,12 +1344,89 @@ document.addEventListener('DOMContentLoaded', () => {
                 salmonState.x += dx;
                 salmonState.y += dy;
             } else if (salmonDragMode === 'rotate') {
-                salmonState.rotY += screenDx * 0.6;
-                salmonState.rotX = Math.max(-85, Math.min(85, salmonState.rotX + screenDy * 0.4));
+                const radZ = (salmonState.rotZ * Math.PI) / 180;
+                const cosZ = Math.cos(radZ);
+                const sinZ = Math.sin(radZ);
+                const localDx = screenDx * cosZ + screenDy * sinZ;
+                const localDy = -screenDx * sinZ + screenDy * cosZ;
+                salmonState.rotY += localDx * 0.6;
+                salmonState.rotX = Math.max(-85, Math.min(85, salmonState.rotX + localDy * 0.4));
+            } else if (salmonDragMode === 'rotate2d') {
+                const cx = salmonState.x;
+                const cy = salmonState.y;
+                const distPrev = Math.hypot(lastDrawPos.x - cx, lastDrawPos.y - cy);
+                const distCurr = Math.hypot(pos.x - cx, pos.y - cy);
+                if (distPrev > 5 && distCurr > 5) {
+                    const prevAngleRad = Math.atan2(lastDrawPos.y - cy, lastDrawPos.x - cx);
+                    const currAngleRad = Math.atan2(pos.y - cy, pos.x - cx);
+                    let deltaDeg = (currAngleRad - prevAngleRad) * (180 / Math.PI);
+                    if (deltaDeg > 180) deltaDeg -= 360;
+                    if (deltaDeg < -180) deltaDeg += 360;
+                    if (salmonState.handleRotZ === undefined) salmonState.handleRotZ = salmonState.rotZ;
+                    salmonState.handleRotZ += deltaDeg;
+                    salmonState.rotZ += deltaDeg;
+                } else {
+                    if (salmonState.handleRotZ === undefined) salmonState.handleRotZ = salmonState.rotZ;
+                    salmonState.handleRotZ += screenDx * 0.6;
+                    salmonState.rotZ += screenDx * 0.6;
+                }
             }
 
             lastDrawPos = pos;
             lastScreenPos = { x: touch.clientX, y: touch.clientY };
+            renderAll();
+        } else if (currentMode === 'logo' && lastDrawPos && lastScreenPos) {
+            const dx = pos.x - lastDrawPos.x;
+            const dy = pos.y - lastDrawPos.y;
+            const screenDx = touch.clientX - lastScreenPos.x;
+
+            if (logoDragMode === 'move') {
+                logoState.x += dx;
+                logoState.y += dy;
+            } else if (logoDragMode === 'rotate') {
+                const cx = logoState.x;
+                const cy = logoState.y;
+                const distPrev = Math.hypot(lastDrawPos.x - cx, lastDrawPos.y - cy);
+                const distCurr = Math.hypot(pos.x - cx, pos.y - cy);
+                if (distPrev > 5 && distCurr > 5) {
+                    const prevAngleRad = Math.atan2(lastDrawPos.y - cy, lastDrawPos.x - cx);
+                    const currAngleRad = Math.atan2(pos.y - cy, pos.x - cx);
+                    let deltaDeg = (currAngleRad - prevAngleRad) * (180 / Math.PI);
+                    if (deltaDeg > 180) deltaDeg -= 360;
+                    if (deltaDeg < -180) deltaDeg += 360;
+                    if (logoState.handleRotZ === undefined) logoState.handleRotZ = logoState.rotZ;
+                    logoState.handleRotZ += deltaDeg;
+                    logoState.rotZ += deltaDeg;
+                } else {
+                    if (logoState.handleRotZ === undefined) logoState.handleRotZ = logoState.rotZ;
+                    logoState.handleRotZ += screenDx * 0.6;
+                    logoState.rotZ += screenDx * 0.6;
+                }
+            }
+
+            lastDrawPos = pos;
+            lastScreenPos = { x: touch.clientX, y: touch.clientY };
+            renderAll();
+        } else if (currentMode === 'crop' && lastDrawPos) {
+            const dx = pos.x - lastDrawPos.x;
+            const dy = pos.y - lastDrawPos.y;
+            bgOffsetX += dx;
+            bgOffsetY += dy;
+
+            if (bgImage) {
+                const minX = mainCanvas.width - bgImage.width - (mainCanvas.width - bgImage.width) / 2;
+                const maxX = -(mainCanvas.width - bgImage.width) / 2;
+                if (bgImage.width >= mainCanvas.width) {
+                    bgOffsetX = Math.max(minX, Math.min(maxX, bgOffsetX));
+                }
+                const minY = mainCanvas.height - bgImage.height - (mainCanvas.height - bgImage.height) / 2;
+                const maxY = -(mainCanvas.height - bgImage.height) / 2;
+                if (bgImage.height >= mainCanvas.height) {
+                    bgOffsetY = Math.max(minY, Math.min(maxY, bgOffsetY));
+                }
+            }
+
+            lastDrawPos = pos;
             renderAll();
         } else {
             handleDrawStroke(pos, touch);
@@ -979,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateBrushCursorPos(e) {
-        if (currentMode === 'salmon') {
+        if (currentMode !== 'eraseSalmon') {
             brushCursor.style.display = 'none';
             return;
         }
@@ -1000,14 +1471,13 @@ document.addEventListener('DOMContentLoaded', () => {
         brushCursor.style.height = `${displaySize}px`;
     }
 
-    // --- Salmon Eraser / Hand Punch-Through Logic ---
+    // --- 消しゴム・マスク描画 ---
     function handleDrawStroke(pos, e) {
         if (currentMode === 'salmon') {
             if (lastDrawPos && lastScreenPos && e) {
                 const dx = pos.x - lastDrawPos.x;
                 const dy = pos.y - lastDrawPos.y;
 
-                // Screen-space drag delta for resolution-independent rotation sensitivity
                 const screenDx = e.clientX - lastScreenPos.x;
                 const screenDy = e.clientY - lastScreenPos.y;
 
@@ -1015,10 +1485,97 @@ document.addEventListener('DOMContentLoaded', () => {
                     salmonState.x += dx;
                     salmonState.y += dy;
                 } else if (salmonDragMode === 'rotate') {
-                    salmonState.rotY += screenDx * 0.6;
-                    salmonState.rotX = Math.max(-85, Math.min(85, salmonState.rotX + screenDy * 0.4));
+                    const radZ = (salmonState.rotZ * Math.PI) / 180;
+                    const cosZ = Math.cos(radZ);
+                    const sinZ = Math.sin(radZ);
+                    const localDx = screenDx * cosZ + screenDy * sinZ;
+                    const localDy = -screenDx * sinZ + screenDy * cosZ;
+                    salmonState.rotY += localDx * 0.6;
+                    salmonState.rotX = Math.max(-85, Math.min(85, salmonState.rotX + localDy * 0.4));
+                } else if (salmonDragMode === 'rotate2d') {
+                    const cx = salmonState.x;
+                    const cy = salmonState.y;
+                    const distPrev = Math.hypot(lastDrawPos.x - cx, lastDrawPos.y - cy);
+                    const distCurr = Math.hypot(pos.x - cx, pos.y - cy);
+                    if (distPrev > 5 && distCurr > 5) {
+                        const prevAngleRad = Math.atan2(lastDrawPos.y - cy, lastDrawPos.x - cx);
+                        const currAngleRad = Math.atan2(pos.y - cy, pos.x - cx);
+                        let deltaDeg = (currAngleRad - prevAngleRad) * (180 / Math.PI);
+                        if (deltaDeg > 180) deltaDeg -= 360;
+                        if (deltaDeg < -180) deltaDeg += 360;
+                        if (salmonState.handleRotZ === undefined) salmonState.handleRotZ = salmonState.rotZ;
+                        salmonState.handleRotZ += deltaDeg;
+                        salmonState.rotZ += deltaDeg;
+                    } else {
+                        if (salmonState.handleRotZ === undefined) salmonState.handleRotZ = salmonState.rotZ;
+                        salmonState.handleRotZ += screenDx * 0.6;
+                        salmonState.rotZ += screenDx * 0.6;
+                    }
                 }
 
+                renderAll();
+            }
+            lastDrawPos = pos;
+            if (e) {
+                lastScreenPos = { x: e.clientX, y: e.clientY };
+            }
+            return;
+        } else if (currentMode === 'logo') {
+            if (lastDrawPos && lastScreenPos && e) {
+                const dx = pos.x - lastDrawPos.x;
+                const dy = pos.y - lastDrawPos.y;
+                const screenDx = e.clientX - lastScreenPos.x;
+
+                if (logoDragMode === 'move') {
+                    logoState.x += dx;
+                    logoState.y += dy;
+                } else if (logoDragMode === 'rotate') {
+                    const cx = logoState.x;
+                    const cy = logoState.y;
+                    const distPrev = Math.hypot(lastDrawPos.x - cx, lastDrawPos.y - cy);
+                    const distCurr = Math.hypot(pos.x - cx, pos.y - cy);
+                    if (distPrev > 5 && distCurr > 5) {
+                        const prevAngleRad = Math.atan2(lastDrawPos.y - cy, lastDrawPos.x - cx);
+                        const currAngleRad = Math.atan2(pos.y - cy, pos.x - cx);
+                        let deltaDeg = (currAngleRad - prevAngleRad) * (180 / Math.PI);
+                        if (deltaDeg > 180) deltaDeg -= 360;
+                        if (deltaDeg < -180) deltaDeg += 360;
+                        if (logoState.handleRotZ === undefined) logoState.handleRotZ = logoState.rotZ;
+                        logoState.handleRotZ += deltaDeg;
+                        logoState.rotZ += deltaDeg;
+                    } else {
+                        if (logoState.handleRotZ === undefined) logoState.handleRotZ = logoState.rotZ;
+                        logoState.handleRotZ += screenDx * 0.6;
+                        logoState.rotZ += screenDx * 0.6;
+                    }
+                }
+
+                renderAll();
+            }
+            lastDrawPos = pos;
+            if (e) {
+                lastScreenPos = { x: e.clientX, y: e.clientY };
+            }
+            return;
+        } else if (currentMode === 'crop') {
+            if (lastDrawPos) {
+                const dx = pos.x - lastDrawPos.x;
+                const dy = pos.y - lastDrawPos.y;
+                bgOffsetX += dx;
+                bgOffsetY += dy;
+
+                if (bgImage) {
+                    const minX = mainCanvas.width - bgImage.width - (mainCanvas.width - bgImage.width) / 2;
+                    const maxX = -(mainCanvas.width - bgImage.width) / 2;
+                    if (bgImage.width >= mainCanvas.width) {
+                        bgOffsetX = Math.max(minX, Math.min(maxX, bgOffsetX));
+                    }
+                    const minY = mainCanvas.height - bgImage.height - (mainCanvas.height - bgImage.height) / 2;
+                    const maxY = -(mainCanvas.height - bgImage.height) / 2;
+                    if (bgImage.height >= mainCanvas.height) {
+                        bgOffsetY = Math.max(minY, Math.min(maxY, bgOffsetY));
+                    }
+                }
                 renderAll();
             }
             lastDrawPos = pos;
@@ -1036,7 +1593,6 @@ document.addEventListener('DOMContentLoaded', () => {
             salmonEraseCtx.arc(pos.x, pos.y, actualBrushSize / 2, 0, Math.PI * 2);
             salmonEraseCtx.fill();
 
-            // Spawn subtle bonito flake shaving particles (鰹の削り節)
             spawnBonitoFlakes(pos.x, pos.y, actualBrushSize);
         } else if (currentTool === 'restore') {
             salmonEraseCtx.save();
@@ -1073,40 +1629,199 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('削りを全消去しました');
     }
 
-    // --- Master Render Pipeline ---
+    // --- Popロゴ描画ジェネレーター ---
+    function drawPopLogo(ctx, x, y, scale, rotZ, text1, text2) {
+        if (!text1 && !text2) return;
+        if (isNgWordDetected) return;
+
+        const l1 = (text1 || '').toUpperCase();
+        const l2 = (text2 || '').toUpperCase();
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        const radZ = (rotZ * Math.PI) / 180;
+        const skewRadX = (-5 * Math.PI) / 180;
+
+        ctx.rotate(radZ);
+        ctx.transform(1, 0, Math.tan(skewRadX), 1, 0, 0);
+
+        const baseFontSize = 88;
+        const lineGap = 72;
+        const fontFamily = "'Permanent Marker', cursive, sans-serif";
+
+        function measureLine(text, isLine1 = false) {
+            if (!text) return { width: 0, items: [] };
+            const items = [];
+            let totalWidth = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const isFirst = (i === 0);
+                const scaleFactor = isFirst ? (isLine1 ? 1.48 : 1.25) : 1.0;
+                const fontSz = baseFontSize * scaleFactor;
+                ctx.font = `900 ${fontSz}px ${fontFamily}`;
+                const metrics = ctx.measureText(char);
+                const w = metrics.width * 0.97;
+                items.push({ char, isFirst, fontSz, width: w });
+                totalWidth += w;
+            }
+            return { width: totalWidth, items };
+        }
+
+        const line1Data = measureLine(l1, true);
+        const line2Data = measureLine(l2, false);
+
+        const maxLineW = Math.max(line1Data.width, line2Data.width);
+        const exFontSz = baseFontSize * 1.85;
+        ctx.font = `900 ${exFontSz}px ${fontFamily}`;
+        const exMarkW = ctx.measureText('!').width * 1.1;
+
+        const totalW = maxLineW + exMarkW + 15;
+
+        // ロゴ表示幅がキャンバス横幅の88%を超える場合のみ動的自動縮小
+        const scaledTextWidth = totalW * scale;
+        const maxAllowedWidth = ctx.canvas.width * 0.88;
+
+        let autoFitScale = 1.0;
+        if (scaledTextWidth > maxAllowedWidth) {
+            autoFitScale = maxAllowedWidth / scaledTextWidth;
+        }
+
+        const finalScale = scale * autoFitScale;
+        ctx.scale(finalScale, finalScale);
+
+        const totalH = lineGap + baseFontSize * 1.3;
+
+        const startX = -totalW / 2;
+        const startY = -totalH / 2 + baseFontSize * 0.95;
+
+        const startX1 = startX;
+        const startX2 = startX + (maxLineW - line2Data.width);
+
+        const centerX = startX + totalW / 2;
+        const centerY = startY + lineGap / 2 - baseFontSize * 0.30;
+        const gradHalfLen = (lineGap + baseFontSize * 1.8) / 2;
+        const gradAngleRad = (5 * Math.PI) / 180;
+
+        const gradDx = Math.sin(gradAngleRad) * gradHalfLen;
+        const gradDy = Math.cos(gradAngleRad) * gradHalfLen;
+
+        const gradient = ctx.createLinearGradient(
+            centerX - gradDx,
+            centerY - gradDy,
+            centerX + gradDx,
+            centerY + gradDy
+        );
+        gradient.addColorStop(0, '#00ff66');
+        gradient.addColorStop(0.1, '#ffff00');
+        gradient.addColorStop(0.2, '#ff3300');
+        gradient.addColorStop(0.3, '#ff007f');
+        gradient.addColorStop(0.4, '#9900ff');
+        gradient.addColorStop(0.5, '#00d2ff');
+        gradient.addColorStop(0.6, '#00ff66');
+        gradient.addColorStop(0.7, '#ffff00');
+        gradient.addColorStop(0.8, '#ff3300');
+        gradient.addColorStop(0.9, '#ff007f');
+
+        function drawLogoTextGeometry(offX, offY, fillStyle, strokeStyle, baseLineWidth) {
+            let curX = startX1 + offX;
+            const y1 = startY + offY;
+            line1Data.items.forEach(item => {
+                ctx.font = `900 ${item.fontSz}px ${fontFamily}`;
+                if (strokeStyle && baseLineWidth > 0) {
+                    ctx.lineWidth = baseLineWidth;
+                    ctx.strokeStyle = strokeStyle;
+                    ctx.strokeText(item.char, curX, y1);
+                }
+                if (fillStyle) {
+                    ctx.fillStyle = fillStyle;
+                    ctx.fillText(item.char, curX, y1);
+                }
+                curX += item.width;
+            });
+
+            curX = startX2 + offX;
+            const y2 = startY + lineGap + offY;
+            line2Data.items.forEach(item => {
+                ctx.font = `900 ${item.fontSz}px ${fontFamily}`;
+                const charY2 = item.isFirst ? y2 + (item.fontSz - baseFontSize) * 0.70 : y2;
+
+                if (strokeStyle && baseLineWidth > 0) {
+                    ctx.lineWidth = baseLineWidth;
+                    ctx.strokeStyle = strokeStyle;
+                    ctx.strokeText(item.char, curX, charY2);
+                }
+                if (fillStyle) {
+                    ctx.fillStyle = fillStyle;
+                    ctx.fillText(item.char, curX, charY2);
+                }
+                curX += item.width;
+            });
+
+            const exX = startX + maxLineW + 10 + offX;
+            const exY = startY + lineGap * 0.85 + offY;
+            ctx.font = `900 ${exFontSz}px ${fontFamily}`;
+            if (strokeStyle && baseLineWidth > 0) {
+                ctx.lineWidth = baseLineWidth;
+                ctx.strokeStyle = strokeStyle;
+                ctx.strokeText('!', exX, exY);
+            }
+            if (fillStyle) {
+                ctx.fillStyle = fillStyle;
+                ctx.fillText('!', exX, exY);
+            }
+        }
+
+        function renderLogoPasses() {
+            ctx.lineJoin = 'miter';
+            ctx.lineCap = 'butt';
+            ctx.miterLimit = 5.0;
+
+            const borderLineWidth = 6.0;
+
+            drawLogoTextGeometry(1.5, 1.5, null, 'rgba(0, 0, 0, 0.5)', borderLineWidth + 1.5);
+            drawLogoTextGeometry(-1.5, -1.5, null, 'rgba(255, 255, 255, 0.85)', borderLineWidth + 1.0);
+            drawLogoTextGeometry(0, 0, null, '#000000', borderLineWidth);
+            drawLogoTextGeometry(0, 0, gradient, null, 0);
+        }
+
+        renderLogoPasses();
+        ctx.restore();
+    }
+
+    // --- メインレンダリングパイプライン ---
     function renderAll(forExport = false) {
         if (!bgImage) return;
 
-        // 1. Draw Base Background Image
         mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-        mainCtx.drawImage(bgImage, 0, 0);
+        const bgX = (mainCanvas.width - bgImage.width) / 2 + bgOffsetX;
+        const bgY = (mainCanvas.height - bgImage.height) / 2 + bgOffsetY;
+        mainCtx.drawImage(bgImage, bgX, bgY);
 
-        // 2. Render 3D Salmon to Three.js Canvas
         renderThreeSalmon();
 
-        // 3. Composite 3D Salmon onto Main Canvas with Punch-through Eraser Mask
         if (isSalmonLoaded && threeCanvas && activeSalmonGroup) {
             const salmonWidth = threeCanvas.width;
             const salmonHeight = threeCanvas.height;
-
-            const posX = salmonState.x - salmonWidth / 2;
-            const posY = salmonState.y - salmonHeight / 2;
 
             const tempSalmonCanvas = document.createElement('canvas');
             tempSalmonCanvas.width = mainCanvas.width;
             tempSalmonCanvas.height = mainCanvas.height;
             const tCtx = tempSalmonCanvas.getContext('2d');
 
-            tCtx.drawImage(threeCanvas, posX, posY);
+            tCtx.save();
+            tCtx.translate(salmonState.x, salmonState.y);
+            tCtx.rotate((salmonState.rotZ * Math.PI) / 180);
+            tCtx.drawImage(threeCanvas, -salmonWidth / 2, -salmonHeight / 2);
+            tCtx.restore();
 
             if (salmonEraseCanvas.width > 0) {
                 tCtx.globalCompositeOperation = 'destination-out';
                 tCtx.drawImage(salmonEraseCanvas, 0, 0);
             }
 
-            // Render fish translucent (55% opacity) during trimming mode so user can see hand/fingers underneath!
-            // During export generation or 'salmon' mode, fish is rendered at 100% full opacity.
-            if (!forExport && currentMode === 'eraseSalmon') {
+            // マスク・ロゴ編集モード時はおさかなを55%透過表示（書き出し時・移動モード時は不透明）
+            if (!forExport && (currentMode === 'eraseSalmon' || currentMode === 'logo')) {
                 mainCtx.save();
                 mainCtx.globalAlpha = 0.55;
                 mainCtx.drawImage(tempSalmonCanvas, 0, 0);
@@ -1114,6 +1829,22 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 mainCtx.drawImage(tempSalmonCanvas, 0, 0);
             }
+        }
+
+        // ロゴ描画（マスクモード時は非表示、書き出し時は常に描画）
+        const shouldDrawLogo = logoState.visible && (forExport || currentMode !== 'eraseSalmon') && (logoState.line1 || logoState.line2);
+        if (shouldDrawLogo) {
+            const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
+            const baseLogoScale = (refDim / 800) * logoState.scale;
+            drawPopLogo(
+                mainCtx,
+                logoState.x,
+                logoState.y,
+                baseLogoScale,
+                logoState.rotZ,
+                logoState.line1,
+                logoState.line2
+            );
         }
 
         if (!forExport) {
@@ -1127,7 +1858,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const diag = Math.sqrt(salmonAspect * salmonAspect + 1.0);
         const cameraBound = diag * 1.15;
 
-        // Calculate dynamic square canvas render resolution so 360-degree rotation never clips
         const size = Math.round(512 * salmonState.scale * (cameraBound / 1.15));
 
         if (threeCanvas.width !== size || threeCanvas.height !== size) {
@@ -1138,19 +1868,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const radX = (salmonState.rotX * Math.PI) / 180;
         const radY = (salmonState.rotY * Math.PI) / 180;
-        const radZ = (salmonState.rotZ * Math.PI) / 180;
 
-        activeSalmonGroup.rotation.set(radX, radY, radZ);
+        activeSalmonGroup.rotation.set(radX, radY, 0);
 
         threeRenderer.render(threeScene, threeCamera);
     }
 
     function renderOverlay() {
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-        if (!bgImage || currentMode === 'salmon') return;
+        if (!bgImage) return;
 
-        // 1. Render Red Translucent Mask Highlight
-        if (salmonEraseCanvas.width > 0) {
+        if (currentMode === 'eraseSalmon' && salmonEraseCanvas.width > 0) {
             const tempOverlay = document.createElement('canvas');
             tempOverlay.width = overlayCanvas.width;
             tempOverlay.height = overlayCanvas.height;
@@ -1165,13 +1893,205 @@ document.addEventListener('DOMContentLoaded', () => {
             overlayCtx.drawImage(tempOverlay, 0, 0);
         }
 
-        // 2. Render Transient Bonito Flake Shaving Particles (Overlay only, excluded from output PNG!)
+        drawRotationGuideRing(overlayCtx);
+        drawCropGuideOverlay(overlayCtx);
+
         if (bonitoParticles.length > 0) {
             bonitoParticles.forEach(p => drawBonitoFlake(overlayCtx, p));
         }
     }
 
-    // --- Toast Notification Helper (Exact match with uma-new-era-title) ---
+    function drawRotationGuideRing(ctx) {
+        if (!bgImage) return;
+
+        let cx = 0, cy = 0;
+        let rotZ = 0;
+        let handleRotZ = 0;
+        let radius = 100;
+        let modeType = '';
+
+        if (currentMode === 'salmon') {
+            if (salmonDragMode === 'rotate2d') {
+                cx = salmonState.x;
+                cy = salmonState.y;
+                rotZ = salmonState.rotZ;
+                handleRotZ = salmonState.handleRotZ !== undefined ? salmonState.handleRotZ : salmonState.rotZ;
+                const baseScale = getBaseSalmonScale(bgImage.width) || 1;
+                const relativeScale = salmonState.scale / baseScale;
+                radius = Math.max(70, Math.min(mainCanvas.width * 0.4, 130 * relativeScale));
+                modeType = '2d';
+            } else if (salmonDragMode === 'rotate') {
+                cx = salmonState.x;
+                cy = salmonState.y;
+                const baseScale = getBaseSalmonScale(bgImage.width) || 1;
+                const relativeScale = salmonState.scale / baseScale;
+                radius = Math.max(70, Math.min(mainCanvas.width * 0.4, 130 * relativeScale));
+                modeType = '3d';
+            } else {
+                return;
+            }
+        } else if (currentMode === 'logo' && logoDragMode === 'rotate') {
+            cx = logoState.x;
+            cy = logoState.y;
+            rotZ = logoState.rotZ;
+            handleRotZ = logoState.handleRotZ !== undefined ? logoState.handleRotZ : logoState.rotZ;
+            radius = Math.max(70, Math.min(mainCanvas.width * 0.4, 130 * logoState.scale));
+            modeType = '2d';
+        } else {
+            return;
+        }
+
+        ctx.save();
+
+        if (modeType === '2d') {
+            const themeColor = '#2e7d32';
+            const activeColor = '#4caf50';
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+            ctx.fillStyle = isDrawing ? activeColor : themeColor;
+            ctx.shadowColor = 'rgba(46, 125, 50, 0.6)';
+            ctx.shadowBlur = 8;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.75)';
+            ctx.lineWidth = isDrawing ? 3.5 : 2.5;
+            ctx.setLineDash([8, 6]);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius + 4, 0, Math.PI * 2);
+            ctx.setLineDash([]);
+            ctx.strokeStyle = 'rgba(46, 125, 50, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            const radZ = (handleRotZ - 90) * (Math.PI / 180);
+            const knobX = cx + radius * Math.cos(radZ);
+            const knobY = cy + radius * Math.sin(radZ);
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(knobX, knobY);
+            ctx.strokeStyle = 'rgba(46, 125, 50, 0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(knobX, knobY, isDrawing ? 16 : 14, 0, Math.PI * 2);
+            ctx.fillStyle = isDrawing ? '#2e7d32' : '#ffffff';
+            ctx.strokeStyle = isDrawing ? '#ffffff' : '#2e7d32';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = isDrawing ? 'rgba(76, 175, 80, 0.9)' : 'rgba(46, 125, 50, 0.6)';
+            ctx.shadowBlur = isDrawing ? 12 : 8;
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(knobX, knobY, 4, 0, Math.PI * 2);
+            ctx.fillStyle = isDrawing ? '#ffffff' : '#2e7d32';
+            ctx.shadowBlur = 0;
+            ctx.fill();
+
+        } else if (modeType === '3d') {
+            const themeColor = '#2e7d32';
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+            ctx.fillStyle = themeColor;
+            ctx.shadowColor = 'rgba(46, 125, 50, 0.6)';
+            ctx.shadowBlur = 8;
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.75)';
+            ctx.lineWidth = isDrawing ? 3.5 : 2.5;
+            ctx.setLineDash([8, 6]);
+            ctx.stroke();
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate((salmonState.rotZ * Math.PI) / 180);
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, radius, radius * 0.35, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(46, 125, 50, 0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.ellipse(0, 0, radius * 0.35, radius, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(46, 125, 50, 0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            const directions = [
+                { x: 0, y: -radius },
+                { x: radius, y: 0 },
+                { x: 0, y: radius },
+                { x: -radius, y: 0 }
+            ];
+
+            directions.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, isDrawing ? 10 : 8, 0, Math.PI * 2);
+                ctx.fillStyle = isDrawing ? '#2e7d32' : '#ffffff';
+                ctx.strokeStyle = isDrawing ? '#ffffff' : '#2e7d32';
+                ctx.lineWidth = 2.5;
+                ctx.shadowColor = 'rgba(46, 125, 50, 0.6)';
+                ctx.shadowBlur = 6;
+                ctx.fill();
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+
+    function drawCropGuideOverlay(ctx) {
+        if (currentMode !== 'crop' || !bgImage) return;
+
+        const w = overlayCanvas.width;
+        const h = overlayCanvas.height;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+
+        ctx.beginPath();
+        ctx.moveTo(w / 3, 0); ctx.lineTo(w / 3, h);
+        ctx.moveTo((w * 2) / 3, 0); ctx.lineTo((w * 2) / 3, h);
+        ctx.moveTo(0, h / 3); ctx.lineTo(w, h / 3);
+        ctx.moveTo(0, (h * 2) / 3); ctx.lineTo(w, (h * 2) / 3);
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.strokeStyle = isDrawing ? '#4caf50' : '#2e7d32';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(0, 0, w, h);
+
+        const bracketLen = 24;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = isDrawing ? '#4caf50' : '#2e7d32';
+
+        ctx.beginPath();
+        ctx.moveTo(0, bracketLen); ctx.lineTo(0, 0); ctx.lineTo(bracketLen, 0);
+        ctx.moveTo(w - bracketLen, 0); ctx.lineTo(w, 0); ctx.lineTo(w, bracketLen);
+        ctx.moveTo(0, h - bracketLen); ctx.lineTo(0, h); ctx.lineTo(bracketLen, h);
+        ctx.moveTo(w - bracketLen, h); ctx.lineTo(w, h); ctx.lineTo(w, h - bracketLen);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // --- トースト通知 ---
     let toastTimeout;
     function showToast(msg, duration = 2500) {
         if (!toast) return;
@@ -1181,18 +2101,21 @@ document.addEventListener('DOMContentLoaded', () => {
         toastTimeout = setTimeout(() => toast.classList.remove('show'), duration);
     }
 
-    // --- Export & Download & Share ---
+    // --- 画像生成・ダウンロード・シェア ---
     generateBtn.addEventListener('click', () => {
+        if (isNgWordDetected) {
+            showToast('不適切な文字または表現が含まれているため画像を生成できません');
+            return;
+        }
+
         if (!bgImage) {
             showToast('背景画像が読み込まれていません。');
             return;
         }
 
-        // 1. Open modal immediately with spinner state (Matching corner-to-ratio)
         if (modalLoading) modalLoading.style.display = 'flex';
         if (modalBodyContent) modalBodyContent.style.display = 'none';
 
-        // Force CSS animation reflow for spinner
         if (modalLoading) {
             const spinner = modalLoading.querySelector('.spinner');
             if (spinner) {
@@ -1204,21 +2127,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resultModal.classList.add('open');
 
-        // 2. Schedule asynchronous image generation so the browser renders modal & spinner first
         requestAnimationFrame(() => {
             setTimeout(() => {
                 try {
-                    // Render full 100% opaque fish for export without overlays
                     renderAll(true);
 
                     const dataUrl = mainCanvas.toDataURL('image/png');
                     resultImage.src = dataUrl;
                     downloadBtn.href = dataUrl;
 
-                    // Re-render transient UI state for workspace
                     renderAll(false);
 
-                    // Construct Twitter/X Share intent URL matching uma-new-era-title
                     const fishName = FISH_CONFIGS[currentFishType].name;
                     const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもサーモンサモナー\n`);
                     const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(location.href)}`;
@@ -1226,7 +2145,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         twitterShareBtn.href = tweetUrl;
                     }
 
-                    // Hide loading spinner and reveal completed image modal body
                     if (modalLoading) modalLoading.style.display = 'none';
                     if (modalBodyContent) modalBodyContent.style.display = 'block';
                 } catch (err) {
