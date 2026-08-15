@@ -2139,8 +2139,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderAll(false);
 
                     const fishName = FISH_CONFIGS[currentFishType].name;
-                    const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもサーモンサモナー\n`);
-                    const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(location.href)}`;
+                    const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもサーモンサモナー`);
+                    const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
                     if (twitterShareBtn) {
                         twitterShareBtn.href = tweetUrl;
                     }
