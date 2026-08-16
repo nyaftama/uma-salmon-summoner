@@ -1,5 +1,5 @@
 /**
- * ウマ娘 なんでもサーモンサモナー - アプリケーションロジック
+ * ウマ娘 なんでもSHAKEROCKメーカー - アプリケーションロジック
  * @author @nyaftama
  * @version 1.00
  */
@@ -2139,7 +2139,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderAll(false);
 
                     const fishName = FISH_CONFIGS[currentFishType].name;
-                    const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもサーモンサモナー`);
+                    const tweetText = encodeURIComponent(`${fishName}を召喚しました！\n#ウマ娘 #なんでもSHAKEROCKメーカー`);
                     const tweetUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
                     if (twitterShareBtn) {
                         twitterShareBtn.href = tweetUrl;
