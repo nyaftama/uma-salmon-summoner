@@ -31,14 +31,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Noto+Sans+JP:wght@400;700;900&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+JP:wght@700;900&display=swap"
         rel="stylesheet">
 
     <!-- 外部ライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic-to/dist/iife/heic-to.js"></script>
 
-    <link rel="stylesheet" href="css/style.css?v=1.00b">
+    <link rel="stylesheet" href="css/style.css?v=1.01">
 </head>
 
 <body>
@@ -47,7 +47,7 @@
         <!-- ヘッダー情報 -->
         <div class="header-meta">
             <div class="version-group">
-                <span class="version-badge">v1.00b</span>
+                <span class="version-badge">v1.01</span>
                 <a href="https://github.com/nyaftama/uma-salmon-summoner#%E6%9B%B4%E6%96%B0%E5%B1%A5%E6%AD%B4"
                     target="_blank" rel="noopener noreferrer" class="changelog-link">更新履歴</a>
             </div>
@@ -138,15 +138,42 @@
 
             <!-- 操作モード切り替えタブ -->
             <div class="editor-tabs">
-                <button type="button" class="tab-btn active" data-mode="salmon">
+                <button type="button" class="tab-btn active" data-mode="crop">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M 2 17 C 8 7 16 6 22 12" />
-                        <path d="M 2 7 C 8 17 16 18 22 12" />
-                        <path d="M 2 7 v 10" />
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span>背景</span>
+                </button>
+                <button type="button" class="tab-btn" data-mode="logo">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"></path>
+                        <path d="M13.5 6.5l4 4"></path>
+                        <path d="M16 19h6"></path>
+                    </svg>
+                    <span>ロゴ</span>
+                </button>
+                <button type="button" class="tab-btn" data-mode="subtitle">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
+                        <line x1="7" y1="10" x2="17" y2="10"></line>
+                        <line x1="7" y1="14" x2="13" y2="14"></line>
+                    </svg>
+                    <span>字幕</span>
+                </button>
+                <button type="button" class="tab-btn" data-mode="salmon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M 2 19 C 8 4 16 3 22 12" />
+                        <path d="M 2 5 C 8 20 16 21 22 12" />
+                        <path d="M 2 5 v 14" />
                         <circle cx="16.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
                     </svg>
-                    <span>おさかな移動</span>
+                    <span>おさかな</span>
                 </button>
                 <button type="button" class="tab-btn" data-mode="eraseSalmon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -156,30 +183,12 @@
                     </svg>
                     <span>マスク</span>
                 </button>
-                <button type="button" class="tab-btn" data-mode="logo">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"></path>
-                        <path d="M13.5 6.5l4 4"></path>
-                        <path d="M16 19h6"></path>
-                    </svg>
-                    <span>ロゴ編集</span>
-                </button>
-                <button type="button" class="tab-btn" data-mode="crop">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <polyline points="21 15 16 10 5 21"></polyline>
-                    </svg>
-                    <span>背景</span>
-                </button>
             </div>
 
             <!-- ワークスペースキャンバス -->
             <div id="canvasWorkspace" class="canvas-workspace">
                 <!-- おさかな移動/回転切替 -->
-                <div id="salmonDragToggleRow" class="canvas-overlay-drag-selector">
+                <div id="salmonDragToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
                     <div class="radio-group">
                         <label class="radio-option">
                             <input type="radio" name="salmonDragMode" value="move" checked>
@@ -199,24 +208,10 @@
                     </div>
                 </div>
 
-                <!-- ロゴ移動/回転切替 -->
-                <div id="logoDragToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
-                    <div class="radio-group">
-                        <label class="radio-option">
-                            <input type="radio" name="logoDragMode" value="move" checked>
-                            <span class="radio-custom"></span>
-                            <span class="radio-text">移動</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="logoDragMode" value="rotate">
-                            <span class="radio-custom"></span>
-                            <span class="radio-text">回転</span>
-                        </label>
-                    </div>
-                </div>
+
 
                 <!-- 切り抜きアスペクト比選択 -->
-                <div id="cropToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
+                <div id="cropToggleRow" class="canvas-overlay-drag-selector" style="display: flex;">
                     <div class="aspect-ratio-selector">
                         <div class="custom-dropdown" id="aspectDropdown">
                             <button type="button" class="dropdown-trigger" id="aspectDropdownTrigger"
@@ -309,6 +304,22 @@
                     </button>
                 </div>
 
+                <!-- ロゴ有効切替（右上表示） -->
+                <div id="logoEnableToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
+                    <label class="overlay-checkbox-label">
+                        <input type="checkbox" id="logoShow" class="checkbox-input" checked>
+                        <span class="overlay-checkbox-text">有効</span>
+                    </label>
+                </div>
+
+                <!-- 字幕有効切替（右上表示） -->
+                <div id="subtitleEnableToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
+                    <label class="overlay-checkbox-label">
+                        <input type="checkbox" id="subtitleShow" class="checkbox-input" checked>
+                        <span class="overlay-checkbox-text">有効</span>
+                    </label>
+                </div>
+
                 <!-- マスク描画/復元切替 -->
                 <div id="maskToolToggleRow" class="canvas-overlay-drag-selector" style="display: none;">
                     <div class="radio-group">
@@ -338,12 +349,6 @@
             </div>
 
             <div class="controls-grid">
-                <div class="form-group" style="grid-column: 1 / -1;">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="logoShow" class="checkbox-input" checked>
-                        <span>ロゴを表示する</span>
-                    </label>
-                </div>
 
                 <div class="form-group">
                     <label for="logoLine1" class="form-label form-label-flex">
@@ -394,6 +399,62 @@
             </div>
         </div>
 
+        <!-- カード: 字幕設定 -->
+        <div class="card" id="subtitleToolsCard" style="display: none;">
+            <div class="card-title">
+                <span>字幕設定</span>
+            </div>
+
+            <div class="controls-grid">
+
+                <div class="form-group">
+                    <label for="subtitleLine1" class="form-label form-label-flex">
+                        <span>テキスト (1行目)</span>
+                    </label>
+                    <input type="text" id="subtitleLine1" value="シャケシャケナー！シャケシャケナー！" placeholder="シャケシャケナー！シャケシャケナー！"
+                        maxlength="30" class="form-input">
+                    <div id="subtitleLine1Error" class="input-error-msg" style="display: none;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"
+                            style="vertical-align: middle; margin-right: 4px; flex-shrink: 0;">
+                            <path
+                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                        </svg>
+                        <span>エラーが発生しました</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="subtitleLine2" class="form-label form-label-flex">
+                        <span>テキスト (2行目)</span>
+                    </label>
+                    <input type="text" id="subtitleLine2" value="" placeholder="（めでタイ！めでタイ！）" maxlength="30"
+                        class="form-input">
+                    <div id="subtitleLine2Error" class="input-error-msg" style="display: none;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"
+                            style="vertical-align: middle; margin-right: 4px; flex-shrink: 0;">
+                            <path
+                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                        </svg>
+                        <span>エラーが発生しました</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="subtitleScale" class="form-label form-label-flex">
+                        <span>字幕サイズ（拡大縮小）</span>
+                        <span id="subtitleScaleVal" class="val-badge">100%</span>
+                    </label>
+                    <input type="range" id="subtitleScale" min="20" max="250" value="100" class="range-slider">
+                </div>
+            </div>
+
+            <div class="mask-actions-row">
+                <button type="button" id="resetSubtitleBtn" class="btn btn-secondary btn-small">
+                    字幕位置・設定をリセット
+                </button>
+            </div>
+        </div>
+
         <!-- カード4: ブラシ設定 -->
         <div class="card" id="eraserToolsCard" style="display: none;">
             <div class="card-title">
@@ -419,8 +480,8 @@
             </div>
         </div>
 
-        <!-- カード5: 3Dおさかな設定 -->
-        <div class="card" id="fishToolsCard">
+        <!-- カード: 3Dおさかな設定 -->
+        <div class="card" id="fishToolsCard" style="display: none;">
             <div class="card-title">
                 <span>3Dおさかなの調整</span>
             </div>
@@ -459,10 +520,97 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="lightColor" class="form-label form-label-flex">
-                        <span>光源の色</span>
-                        <input type="color" id="lightColor" value="#ffffff" class="color-picker-input">
-                    </label>
+                    <label class="form-label">光源の色</label>
+                    <div class="custom-dropdown" id="lightColorDropdown">
+                        <button type="button" class="dropdown-trigger" id="lightColorDropdownTrigger"
+                            aria-haspopup="listbox" aria-expanded="false" title="光源の色の変更">
+                            <span class="dropdown-selected-icon" id="lightColorSelectedIcon">
+                                <span class="color-swatch-badge"
+                                    style="background-color: #ffffff; border: 1px solid #ccc;"></span>
+                            </span>
+                            <span class="dropdown-selected-text" id="lightColorSelectedText">ホワイト (標準)</span>
+                            <svg class="dropdown-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
+                        </button>
+                        <div class="dropdown-menu" id="lightColorDropdownMenu" role="listbox">
+                            <button type="button" class="dropdown-item active" data-light-color="#ffffff"
+                                data-display-color="#ffffff" data-name="ホワイト (標準)" role="option">
+                                <span class="color-swatch-badge"
+                                    style="background-color: #ffffff; border: 1px solid #ccc;"></span>
+                                <span>ホワイト (標準)</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#b5e2ff"
+                                data-display-color="#0099ff" data-name="シアン" role="option">
+                                <span class="color-swatch-badge" style="background-color: #0099ff;"></span>
+                                <span>シアン</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#b2c9ff"
+                                data-display-color="#0000cc" data-name="ブルー" role="option">
+                                <span class="color-swatch-badge" style="background-color: #0000cc;"></span>
+                                <span>ブルー</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#d4bfff"
+                                data-display-color="#660099" data-name="パープル" role="option">
+                                <span class="color-swatch-badge" style="background-color: #660099;"></span>
+                                <span>パープル</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#f5bfd7"
+                                data-display-color="#b00066" data-name="マゼンタ" role="option">
+                                <span class="color-swatch-badge" style="background-color: #b00066;"></span>
+                                <span>マゼンタ</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#ffb8bd"
+                                data-display-color="#cc0000" data-name="レッド" role="option">
+                                <span class="color-swatch-badge" style="background-color: #cc0000;"></span>
+                                <span>レッド</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#ffcea0"
+                                data-display-color="#ff5500" data-name="オレンジ" role="option">
+                                <span class="color-swatch-badge" style="background-color: #ff5500;"></span>
+                                <span>オレンジ</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#fdd985"
+                                data-display-color="#ff9900" data-name="アンバー" role="option">
+                                <span class="color-swatch-badge" style="background-color: #ff9900;"></span>
+                                <span>アンバー</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#fdee77"
+                                data-display-color="#ffcc00" data-name="イエロー" role="option">
+                                <span class="color-swatch-badge" style="background-color: #ffcc00;"></span>
+                                <span>イエロー</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#fdf789"
+                                data-display-color="#ffff00" data-name="レモン" role="option">
+                                <span class="color-swatch-badge"
+                                    style="background-color: #ffff00; border: 1px solid #ccc;"></span>
+                                <span>レモン</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#ccf67f"
+                                data-display-color="#88cc00" data-name="ライム" role="option">
+                                <span class="color-swatch-badge" style="background-color: #88cc00;"></span>
+                                <span>ライム</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="#acf6bf"
+                                data-display-color="#009933" data-name="グリーン" role="option">
+                                <span class="color-swatch-badge" style="background-color: #009933;"></span>
+                                <span>グリーン</span>
+                            </button>
+                            <button type="button" class="dropdown-item" data-light-color="custom"
+                                data-display-color="custom" data-name="カスタム" role="option">
+                                <span class="color-swatch-badge custom-swatch-badge">
+                                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor"
+                                        stroke-width="2.5">
+                                        <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                </span>
+                                <span>カスタム...</span>
+                            </button>
+                        </div>
+                    </div>
+                    <input type="color" id="customLightColorInput" value="#ffffff"
+                        style="opacity: 0; width: 0; height: 0; pointer-events: none; position: absolute;">
                 </div>
             </div>
 
@@ -546,7 +694,7 @@
     <!-- トースト通知 -->
     <div id="toast" class="toast"></div>
 
-    <script src="js/app.js?v=1.00b"></script>
+    <script src="js/app.js?v=1.01"></script>
 </body>
 
 </html>

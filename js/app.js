@@ -1,7 +1,7 @@
 /**
  * ウマ娘 なんでもSHAKEROCKメーカー - アプリケーションロジック
  * @author @nyaftama
- * @version 1.00
+ * @version 1.01
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const cropToggleRow = document.getElementById('cropToggleRow');
     const maskToolToggleRow = document.getElementById('maskToolToggleRow');
     const maskUndoToggleRow = document.getElementById('maskUndoToggleRow');
+    const logoEnableToggleRow = document.getElementById('logoEnableToggleRow');
+    const subtitleEnableToggleRow = document.getElementById('subtitleEnableToggleRow');
     const overlaySelectors = document.querySelectorAll('.canvas-overlay-drag-selector');
     const dragModeRadioInputs = document.querySelectorAll('input[name="salmonDragMode"]');
     const logoDragModeRadioInputs = document.querySelectorAll('input[name="logoDragMode"]');
@@ -56,6 +58,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoScaleVal = document.getElementById('logoScaleVal');
     const resetLogoBtn = document.getElementById('resetLogoBtn');
 
+    // 字幕設定要素
+    const subtitleToolsCard = document.getElementById('subtitleToolsCard');
+    const subtitleShowInput = document.getElementById('subtitleShow');
+    const subtitleLine1Input = document.getElementById('subtitleLine1');
+    const subtitleLine2Input = document.getElementById('subtitleLine2');
+    const subtitleScaleInput = document.getElementById('subtitleScale');
+    const subtitleScaleVal = document.getElementById('subtitleScaleVal');
+    const resetSubtitleBtn = document.getElementById('resetSubtitleBtn');
+
     // おさかな設定要素
     const salmonScaleInput = document.getElementById('salmonScale');
     const salmonScaleVal = document.getElementById('salmonScaleVal');
@@ -63,7 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const salmonRotZVal = document.getElementById('salmonRotZVal');
     const salmonBulgeInput = document.getElementById('salmonBulge');
     const salmonBulgeVal = document.getElementById('salmonBulgeVal');
-    const lightColorInput = document.getElementById('lightColor');
+    const lightColorDropdown = document.getElementById('lightColorDropdown');
+    const lightColorDropdownTrigger = document.getElementById('lightColorDropdownTrigger');
+    const lightColorSelectedIcon = document.getElementById('lightColorSelectedIcon');
+    const lightColorSelectedText = document.getElementById('lightColorSelectedText');
+    const lightColorDropdownMenu = document.getElementById('lightColorDropdownMenu');
+    const customLightColorInput = document.getElementById('customLightColorInput');
     const resetSalmonBtn = document.getElementById('resetSalmonBtn');
 
     // エクスポート・モーダル要素
@@ -170,58 +186,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function validateAllInputs() {
-        const line1 = logoState.line1 || '';
-        const line2 = logoState.line2 || '';
+        const logoLine1 = logoState.line1 || '';
+        const logoLine2 = logoState.line2 || '';
 
-        const line1Result = checkTextError(line1);
-        const line2Result = checkTextError(line2);
+        const logoLine1Result = checkTextError(logoLine1);
+        const logoLine2Result = checkTextError(logoLine2);
+        const logoCombinedResult = checkTextError((logoLine1 + logoLine2).replace(/\s+/g, ''));
 
-        const combinedText = (line1 + line2).replace(/\s+/g, '');
-        const combinedResult = checkTextError(combinedText);
+        const subLine1 = subtitleState.line1 || '';
+        const subLine2 = subtitleState.line2 || '';
 
-        const isError = line1Result.error || line2Result.error || combinedResult.error;
-        isNgWordDetected = isError;
+        const subLine1Result = checkTextError(subLine1);
+        const subLine2Result = checkTextError(subLine2);
+        const subCombinedResult = checkTextError((subLine1 + subLine2).replace(/\s+/g, ''));
 
-        const line1ErrorEl = document.getElementById('logoLine1Error');
-        const line2ErrorEl = document.getElementById('logoLine2Error');
+        const logoError = logoLine1Result.error || logoLine2Result.error || logoCombinedResult.error;
+        const subError = subLine1Result.error || subLine2Result.error || subCombinedResult.error;
+
+        isNgWordDetected = logoError || subError;
+
+        const logoLine1ErrorEl = document.getElementById('logoLine1Error');
+        const logoLine2ErrorEl = document.getElementById('logoLine2Error');
 
         if (logoLine1Input) {
-            if (line1Result.error || (combinedResult.error && !line2Result.error)) {
+            if (logoLine1Result.error || (logoCombinedResult.error && !logoLine2Result.error)) {
                 logoLine1Input.classList.add('input-error');
-                if (line1ErrorEl) {
-                    line1ErrorEl.style.display = 'flex';
-                    const span = line1ErrorEl.querySelector('span');
-                    if (span) {
-                        if (line1Result.type === 'emoji') {
-                            span.textContent = '絵文字は使用できません';
-                        } else {
-                            span.textContent = '不適切な文字または表現が含まれています';
-                        }
-                    }
+                if (logoLine1ErrorEl) {
+                    logoLine1ErrorEl.style.display = 'flex';
+                    const span = logoLine1ErrorEl.querySelector('span');
+                    if (span) span.textContent = logoLine1Result.type === 'emoji' ? '絵文字は使用できません' : '不適切な文字または表現が含まれています';
                 }
             } else {
                 logoLine1Input.classList.remove('input-error');
-                if (line1ErrorEl) line1ErrorEl.style.display = 'none';
+                if (logoLine1ErrorEl) logoLine1ErrorEl.style.display = 'none';
             }
         }
 
         if (logoLine2Input) {
-            if (line2Result.error) {
+            if (logoLine2Result.error) {
                 logoLine2Input.classList.add('input-error');
-                if (line2ErrorEl) {
-                    line2ErrorEl.style.display = 'flex';
-                    const span = line2ErrorEl.querySelector('span');
-                    if (span) {
-                        if (line2Result.type === 'emoji') {
-                            span.textContent = '絵文字は使用できません';
-                        } else {
-                            span.textContent = '不適切な文字または表現が含まれています';
-                        }
-                    }
+                if (logoLine2ErrorEl) {
+                    logoLine2ErrorEl.style.display = 'flex';
+                    const span = logoLine2ErrorEl.querySelector('span');
+                    if (span) span.textContent = logoLine2Result.type === 'emoji' ? '絵文字は使用できません' : '不適切な文字または表現が含まれています';
                 }
             } else {
                 logoLine2Input.classList.remove('input-error');
-                if (line2ErrorEl) line2ErrorEl.style.display = 'none';
+                if (logoLine2ErrorEl) logoLine2ErrorEl.style.display = 'none';
+            }
+        }
+
+        const subLine1ErrorEl = document.getElementById('subtitleLine1Error');
+        const subLine2ErrorEl = document.getElementById('subtitleLine2Error');
+
+        if (subtitleLine1Input) {
+            if (subLine1Result.error || (subCombinedResult.error && !subLine2Result.error)) {
+                subtitleLine1Input.classList.add('input-error');
+                if (subLine1ErrorEl) {
+                    subLine1ErrorEl.style.display = 'flex';
+                    const span = subLine1ErrorEl.querySelector('span');
+                    if (span) span.textContent = subLine1Result.type === 'emoji' ? '絵文字は使用できません' : '不適切な文字または表現が含まれています';
+                }
+            } else {
+                subtitleLine1Input.classList.remove('input-error');
+                if (subLine1ErrorEl) subLine1ErrorEl.style.display = 'none';
+            }
+        }
+
+        if (subtitleLine2Input) {
+            if (subLine2Result.error) {
+                subtitleLine2Input.classList.add('input-error');
+                if (subLine2ErrorEl) {
+                    subLine2ErrorEl.style.display = 'flex';
+                    const span = subLine2ErrorEl.querySelector('span');
+                    if (span) span.textContent = subLine2Result.type === 'emoji' ? '絵文字は使用できません' : '不適切な文字または表現が含まれています';
+                }
+            } else {
+                subtitleLine2Input.classList.remove('input-error');
+                if (subLine2ErrorEl) subLine2ErrorEl.style.display = 'none';
             }
         }
 
@@ -400,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let salmonEraseCanvas = document.createElement('canvas');
     let salmonEraseCtx = salmonEraseCanvas.getContext('2d');
 
-    let currentMode = 'salmon';
+    let currentMode = 'crop';
     let salmonDragMode = 'move';
     let logoDragMode = 'move';
     let currentTool = 'erase';
@@ -436,6 +478,17 @@ document.addEventListener('DOMContentLoaded', () => {
         handleRotZ: 10
     };
 
+    let isFirstTimeSubtitleTurnedOn = false;
+
+    const subtitleState = {
+        visible: true,
+        line1: 'シャケシャケナー！シャケシャケナー！',
+        line2: '',
+        x: 0,
+        y: 0,
+        scale: 1.0
+    };
+
     // --- Three.js 初期化 ---
     let threeScene, threeCamera, threeRenderer;
     let ambientLight, dirLight;
@@ -443,6 +496,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let threeCanvas = document.createElement('canvas');
 
     initThreeJS();
+    loadDemoImage();
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+            requestRender();
+        });
+    }
 
     loadFishAsset('tuna', () => {
         loadFishAsset('salmon');
@@ -620,12 +680,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!bgImage) {
             loadDemoImage();
-        } else {
-            const currentPct = parseInt(salmonScaleInput.value, 10) || 100;
-            const baseScale = getBaseSalmonScale(bgImage.width);
-            salmonState.scale = (currentPct / 100) * baseScale;
-            requestRender();
         }
+
+        const currentPct = parseInt(salmonScaleInput.value, 10) || 100;
+        const baseScale = getBaseSalmonScale(bgImage.width);
+        salmonState.scale = (currentPct / 100) * baseScale;
+
+        requestRender();
+        setTimeout(() => requestRender(), 100);
+        setTimeout(() => requestRender(), 300);
     }
 
     // --- 輪郭立体化用ディスタンスマップ生成 ---
@@ -858,9 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, 800, 600);
 
-        const demoImg = new Image();
-        demoImg.onload = () => setBgImage(demoImg, false);
-        demoImg.src = canvas.toDataURL('image/png');
+        setBgImage(canvas, false);
     }
 
     function getBaseSalmonScale(canvasWidth) {
@@ -886,7 +947,10 @@ document.addEventListener('DOMContentLoaded', () => {
         salmonState.scale = getBaseSalmonScale(img.width);
 
         logoState.x = img.width / 2;
-        logoState.y = img.height * 0.78;
+        logoState.y = img.height * 0.5;
+
+        subtitleState.x = img.width / 2;
+        subtitleState.y = img.height * 0.88;
 
         if (aspectDropdownMenu) {
             const items = aspectDropdownMenu.querySelectorAll('.dropdown-item');
@@ -946,7 +1010,9 @@ document.addEventListener('DOMContentLoaded', () => {
         salmonState.x = targetW / 2;
         salmonState.y = targetH / 2;
         logoState.x = targetW / 2;
-        logoState.y = targetH * 0.78;
+        logoState.y = targetH * 0.5;
+        subtitleState.x = targetW / 2;
+        subtitleState.y = targetH * 0.88;
 
         const oldEraseCanvas = document.createElement('canvas');
         oldEraseCanvas.width = salmonEraseCanvas.width;
@@ -1013,6 +1079,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 光源の色カスタムドロップダウン
+    if (lightColorDropdownTrigger && lightColorDropdown) {
+        lightColorDropdownTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (aspectDropdown) aspectDropdown.classList.remove('open');
+            const isOpen = lightColorDropdown.classList.contains('open');
+            if (isOpen) {
+                lightColorDropdown.classList.remove('open');
+                lightColorDropdownTrigger.setAttribute('aria-expanded', 'false');
+            } else {
+                lightColorDropdown.classList.add('open');
+                lightColorDropdownTrigger.setAttribute('aria-expanded', 'true');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (lightColorDropdown && !lightColorDropdown.contains(e.target)) {
+                lightColorDropdown.classList.remove('open');
+                lightColorDropdownTrigger.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        if (lightColorDropdownMenu) {
+            const items = lightColorDropdownMenu.querySelectorAll('.dropdown-item');
+            items.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    items.forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+
+                    const lightColor = item.getAttribute('data-light-color');
+                    const displayColor = item.getAttribute('data-display-color');
+                    const name = item.getAttribute('data-name');
+
+                    if (lightColor === 'custom') {
+                        lightColorDropdown.classList.remove('open');
+                        lightColorDropdownTrigger.setAttribute('aria-expanded', 'false');
+                        if (customLightColorInput) {
+                            customLightColorInput.click();
+                        }
+                        return;
+                    }
+
+                    const borderStyle = (displayColor.toLowerCase() === '#ffffff' || displayColor.toLowerCase() === '#ffff00') ? 'border: 1px solid #ccc;' : '';
+                    if (lightColorSelectedIcon) {
+                        lightColorSelectedIcon.innerHTML = `<span class="color-swatch-badge" style="background-color: ${displayColor}; ${borderStyle}"></span>`;
+                    }
+                    if (lightColorSelectedText) {
+                        lightColorSelectedText.textContent = name;
+                    }
+
+                    lightColorDropdown.classList.remove('open');
+                    lightColorDropdownTrigger.setAttribute('aria-expanded', 'false');
+
+                    updateLightColor(lightColor);
+                });
+            });
+        }
+    }
+
+    if (customLightColorInput) {
+        customLightColorInput.addEventListener('input', (e) => {
+            const hexColor = e.target.value;
+            if (lightColorSelectedIcon) {
+                lightColorSelectedIcon.innerHTML = `<span class="color-swatch-badge" style="background-color: ${hexColor}; border: 1px solid #ccc;"></span>`;
+            }
+            if (lightColorSelectedText) {
+                lightColorSelectedText.textContent = `カスタム (${hexColor.toUpperCase()})`;
+            }
+            updateLightColor(hexColor);
+        });
+    }
+
     // --- モード切替 ---
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1022,40 +1161,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (currentMode === 'salmon') {
                 salmonDragToggleRow.style.display = 'flex';
-                logoDragToggleRow.style.display = 'none';
                 if (cropToggleRow) cropToggleRow.style.display = 'none';
                 maskToolToggleRow.style.display = 'none';
                 if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
+                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'none';
+                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'none';
                 eraserToolsCard.style.display = 'none';
                 logoToolsCard.style.display = 'none';
+                if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
                 if (fishToolsCard) fishToolsCard.style.display = 'block';
             } else if (currentMode === 'logo') {
                 salmonDragToggleRow.style.display = 'none';
-                logoDragToggleRow.style.display = 'flex';
                 if (cropToggleRow) cropToggleRow.style.display = 'none';
                 maskToolToggleRow.style.display = 'none';
                 if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
+                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'flex';
+                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'none';
                 eraserToolsCard.style.display = 'none';
+                if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
                 logoToolsCard.style.display = 'block';
                 if (fishToolsCard) fishToolsCard.style.display = 'none';
+            } else if (currentMode === 'subtitle') {
+                salmonDragToggleRow.style.display = 'none';
+                if (cropToggleRow) cropToggleRow.style.display = 'none';
+                maskToolToggleRow.style.display = 'none';
+                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
+                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'none';
+                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'flex';
+                eraserToolsCard.style.display = 'none';
+                logoToolsCard.style.display = 'none';
+                if (fishToolsCard) fishToolsCard.style.display = 'none';
+                if (subtitleToolsCard) subtitleToolsCard.style.display = 'block';
             } else if (currentMode === 'crop') {
                 salmonDragToggleRow.style.display = 'none';
-                logoDragToggleRow.style.display = 'none';
                 if (cropToggleRow) cropToggleRow.style.display = 'flex';
                 maskToolToggleRow.style.display = 'none';
                 if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
+                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'none';
+                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'none';
                 eraserToolsCard.style.display = 'none';
                 logoToolsCard.style.display = 'none';
+                if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
                 if (fishToolsCard) fishToolsCard.style.display = 'none';
                 showToast('ドラッグして背景画像を移動できます');
             } else if (currentMode === 'eraseSalmon') {
                 salmonDragToggleRow.style.display = 'none';
-                logoDragToggleRow.style.display = 'none';
                 if (cropToggleRow) cropToggleRow.style.display = 'none';
                 maskToolToggleRow.style.display = 'flex';
                 if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'flex';
+                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'none';
+                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'none';
                 eraserToolsCard.style.display = 'block';
                 logoToolsCard.style.display = 'none';
+                if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
                 if (fishToolsCard) fishToolsCard.style.display = 'block';
             }
 
@@ -1144,7 +1302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoScaleInput) {
         logoScaleInput.addEventListener('input', (e) => {
             const pct = parseInt(e.target.value, 10) || 100;
-            logoScaleVal.textContent = `${pct}%`;
+            if (logoScaleVal) logoScaleVal.textContent = `${pct}%`;
             logoState.scale = pct / 100;
             requestRender();
         });
@@ -1154,29 +1312,85 @@ document.addEventListener('DOMContentLoaded', () => {
         resetLogoBtn.addEventListener('click', () => {
             resetLogoState();
             requestRender();
-            showToast('ロゴ位置・設定をリセットしました');
+            showToast('ロゴ位置・サイズをリセットしました');
         });
     }
 
     function resetLogoState() {
         if (bgImage) {
             logoState.x = mainCanvas.width / 2;
-            logoState.y = mainCanvas.height * 0.78;
+            logoState.y = mainCanvas.height / 2;
         }
-        logoState.visible = true;
-        logoState.line1 = 'SHAKE';
-        logoState.line2 = 'ROCK';
         logoState.scale = 1.0;
         logoState.rotZ = -10;
         logoState.handleRotZ = 10;
 
-        if (logoShowInput) logoShowInput.checked = true;
-        if (logoLine1Input) logoLine1Input.value = 'SHAKE';
-        if (logoLine2Input) logoLine2Input.value = 'ROCK';
         if (logoScaleInput) {
             logoScaleInput.value = 100;
-            logoScaleVal.textContent = '100%';
+            if (logoScaleVal) logoScaleVal.textContent = '100%';
         }
+        validateAllInputs();
+    }
+
+    // --- 字幕コントロール ---
+    if (subtitleShowInput) {
+        subtitleShowInput.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            subtitleState.visible = isChecked;
+
+            if (isChecked) {
+                if (mainCanvas.width > 0 && (subtitleState.x === 0 || subtitleState.y === 0)) {
+                    subtitleState.x = mainCanvas.width / 2;
+                    subtitleState.y = mainCanvas.height * 0.88;
+                }
+            }
+            validateAllInputs();
+        });
+    }
+
+    if (subtitleLine1Input) {
+        subtitleLine1Input.addEventListener('input', (e) => {
+            subtitleState.line1 = e.target.value;
+            validateAllInputs();
+        });
+    }
+
+    if (subtitleLine2Input) {
+        subtitleLine2Input.addEventListener('input', (e) => {
+            subtitleState.line2 = e.target.value;
+            validateAllInputs();
+        });
+    }
+
+    if (subtitleScaleInput) {
+        subtitleScaleInput.addEventListener('input', (e) => {
+            const pct = parseInt(e.target.value, 10) || 100;
+            if (subtitleScaleVal) subtitleScaleVal.textContent = `${pct}%`;
+            subtitleState.scale = pct / 100;
+            requestRender();
+        });
+    }
+
+    if (resetSubtitleBtn) {
+        resetSubtitleBtn.addEventListener('click', () => {
+            resetSubtitleState();
+            requestRender();
+            showToast('字幕位置・サイズをリセットしました');
+        });
+    }
+
+    function resetSubtitleState() {
+        if (bgImage) {
+            subtitleState.x = mainCanvas.width / 2;
+            subtitleState.y = mainCanvas.height * 0.88;
+        }
+        subtitleState.scale = 1.0;
+
+        if (subtitleScaleInput) {
+            subtitleScaleInput.value = 100;
+            if (subtitleScaleVal) subtitleScaleVal.textContent = '100%';
+        }
+        validateAllInputs();
     }
 
     // --- 3Dおさかなコントロール ---
@@ -1218,13 +1432,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAll();
     });
 
-    if (lightColorInput) {
-        lightColorInput.addEventListener('input', (e) => {
-            const hexColor = e.target.value;
-            if (dirLight) dirLight.color.set('#ffffff');
-            if (ambientLight) ambientLight.color.set('#ffffff');
+    function updateLightColor(colorHex) {
+        if (dirLight) {
+            dirLight.color.set(colorHex);
             renderAll();
-        });
+        }
     }
 
     resetSalmonBtn.addEventListener('click', () => {
@@ -1245,9 +1457,20 @@ document.addEventListener('DOMContentLoaded', () => {
         salmonState.rotZ = 0;
         salmonState.handleRotZ = 0;
 
-        if (lightColorInput) lightColorInput.value = '#ffffff';
-        if (dirLight) dirLight.color.set('#ffffff');
-        if (ambientLight) ambientLight.color.set('#ffffff');
+        if (lightColorDropdownMenu) {
+            const items = lightColorDropdownMenu.querySelectorAll('.dropdown-item');
+            items.forEach(i => {
+                const isWhite = i.getAttribute('data-light-color') === '#ffffff';
+                i.classList.toggle('active', isWhite);
+            });
+        }
+        if (lightColorSelectedIcon) {
+            lightColorSelectedIcon.innerHTML = `<span class="color-swatch-badge" style="background-color: #ffffff; border: 1px solid #ccc;"></span>`;
+        }
+        if (lightColorSelectedText) {
+            lightColorSelectedText.textContent = 'ホワイト (標準)';
+        }
+        updateLightColor('#ffffff');
 
         Object.keys(fishCache).forEach(type => {
             const grp = fishCache[type].group;
@@ -1269,8 +1492,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (salmonRotZInput) salmonRotZInput.value = 0;
         if (salmonRotZVal) salmonRotZVal.textContent = '0°';
         salmonBulgeInput.value = Math.round(salmonState.bulge * 100);
-        salmonBulgeVal.textContent = `${Math.round(salmonState.bulge * 100)}%`;
-        if (lightColorInput) lightColorInput.value = '#ffffff';
+        if (lightColorDropdownMenu) {
+            const items = lightColorDropdownMenu.querySelectorAll('.dropdown-item');
+            items.forEach(i => {
+                const isWhite = i.getAttribute('data-light-color') === '#ffffff';
+                i.classList.toggle('active', isWhite);
+            });
+        }
+        if (lightColorSelectedIcon) {
+            lightColorSelectedIcon.innerHTML = `<span class="color-swatch-badge" style="background-color: #ffffff; border: 1px solid #ccc;"></span>`;
+        }
+        if (lightColorSelectedText) {
+            lightColorSelectedText.textContent = 'ホワイト (標準)';
+        }
     }
 
     // --- キャンバスドラッグ操作 ---
@@ -1406,6 +1640,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             lastDrawPos = pos;
             lastScreenPos = { x: touch.clientX, y: touch.clientY };
+            renderAll();
+        } else if (currentMode === 'subtitle' && lastDrawPos) {
+            const dx = pos.x - lastDrawPos.x;
+            const dy = pos.y - lastDrawPos.y;
+            subtitleState.x += dx;
+            subtitleState.y += dy;
+            lastDrawPos = pos;
             renderAll();
         } else if (currentMode === 'crop' && lastDrawPos) {
             const dx = pos.x - lastDrawPos.x;
@@ -1550,6 +1791,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                renderAll();
+            }
+            lastDrawPos = pos;
+            if (e) {
+                lastScreenPos = { x: e.clientX, y: e.clientY };
+            }
+            return;
+        } else if (currentMode === 'subtitle') {
+            if (lastDrawPos) {
+                const dx = pos.x - lastDrawPos.x;
+                const dy = pos.y - lastDrawPos.y;
+                subtitleState.x += dx;
+                subtitleState.y += dy;
                 renderAll();
             }
             lastDrawPos = pos;
@@ -1789,6 +2043,58 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.restore();
     }
 
+    // --- 字幕描画関数 ---
+    function drawSubtitles(ctx, cx, cy, baseScale, line1, line2) {
+        const text1 = (line1 || '').trim();
+        const text2 = (line2 || '').trim();
+        if (!text1 && !text2) return;
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const fontFamily = '"Noto Serif JP", serif';
+        const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
+        const scaleRatio = (refDim / 800) * subtitleState.scale;
+        const fontSize = Math.round(38 * scaleRatio);
+        const strokeWidth = Math.max(2, 4.5 * scaleRatio);
+
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 3.0;
+
+        const lineGap = 12 * scaleRatio;
+        let l1Y = cy;
+        let l2Y = cy;
+
+        if (text1 && text2) {
+            l1Y = cy - (fontSize + lineGap) / 2;
+            l2Y = cy + (fontSize + lineGap) / 2;
+        } else {
+            l1Y = cy;
+            l2Y = cy;
+        }
+
+        if (text1) {
+            ctx.font = `900 ${fontSize}px ${fontFamily}`;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeText(text1, cx, l1Y);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(text1, cx, l1Y);
+        }
+
+        if (text2) {
+            ctx.font = `900 ${fontSize}px ${fontFamily}`;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeText(text2, cx, l2Y);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(text2, cx, l2Y);
+        }
+
+        ctx.restore();
+    }
+
     // --- メインレンダリングパイプライン ---
     function renderAll(forExport = false) {
         if (!bgImage) return;
@@ -1820,8 +2126,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 tCtx.drawImage(salmonEraseCanvas, 0, 0);
             }
 
-            // マスク・ロゴ編集モード時はおさかなを55%透過表示（書き出し時・移動モード時は不透明）
-            if (!forExport && (currentMode === 'eraseSalmon' || currentMode === 'logo')) {
+            // マスク・ロゴ・字幕編集モード時はおさかなを55%透過表示（書き出し時・移動モード時は不透明）
+            if (!forExport && (currentMode === 'eraseSalmon' || currentMode === 'logo' || currentMode === 'subtitle')) {
                 mainCtx.save();
                 mainCtx.globalAlpha = 0.55;
                 mainCtx.drawImage(tempSalmonCanvas, 0, 0);
@@ -1831,20 +2137,64 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ロゴ描画（マスクモード時は非表示、書き出し時は常に描画）
+        // ロゴ描画（マスクモード時は非表示、字幕モード時は55%透過、書き出し時は常に不透明描画）
         const shouldDrawLogo = logoState.visible && (forExport || currentMode !== 'eraseSalmon') && (logoState.line1 || logoState.line2);
         if (shouldDrawLogo) {
             const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
             const baseLogoScale = (refDim / 800) * logoState.scale;
-            drawPopLogo(
-                mainCtx,
-                logoState.x,
-                logoState.y,
-                baseLogoScale,
-                logoState.rotZ,
-                logoState.line1,
-                logoState.line2
-            );
+            if (!forExport && currentMode === 'subtitle') {
+                mainCtx.save();
+                mainCtx.globalAlpha = 0.55;
+                drawPopLogo(
+                    mainCtx,
+                    logoState.x,
+                    logoState.y,
+                    baseLogoScale,
+                    logoState.rotZ,
+                    logoState.line1,
+                    logoState.line2
+                );
+                mainCtx.restore();
+            } else {
+                drawPopLogo(
+                    mainCtx,
+                    logoState.x,
+                    logoState.y,
+                    baseLogoScale,
+                    logoState.rotZ,
+                    logoState.line1,
+                    logoState.line2
+                );
+            }
+        }
+
+        // 字幕描画（マスクモード時は非表示、ロゴモード時は55%透過、書き出し時は常に不透明描画）
+        const shouldDrawSubtitle = subtitleState.visible && (forExport || currentMode !== 'eraseSalmon') && (subtitleState.line1 || subtitleState.line2);
+        if (shouldDrawSubtitle) {
+            const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
+            const baseSubScale = (refDim / 800) * subtitleState.scale;
+            if (!forExport && currentMode === 'logo') {
+                mainCtx.save();
+                mainCtx.globalAlpha = 0.55;
+                drawSubtitles(
+                    mainCtx,
+                    subtitleState.x,
+                    subtitleState.y,
+                    baseSubScale,
+                    subtitleState.line1,
+                    subtitleState.line2
+                );
+                mainCtx.restore();
+            } else {
+                drawSubtitles(
+                    mainCtx,
+                    subtitleState.x,
+                    subtitleState.y,
+                    baseSubScale,
+                    subtitleState.line1,
+                    subtitleState.line2
+                );
+            }
         }
 
         if (!forExport) {
@@ -1855,10 +2205,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderThreeSalmon() {
         if (!activeSalmonGroup || !isSalmonLoaded) return;
 
-        const diag = Math.sqrt(salmonAspect * salmonAspect + 1.0);
+        const aspect = salmonAspect || 2.0;
+        const diag = Math.sqrt(aspect * aspect + 1.0);
         const cameraBound = diag * 1.15;
 
-        const size = Math.round(512 * salmonState.scale * (cameraBound / 1.15));
+        const currentScale = (salmonState.scale && !isNaN(salmonState.scale)) ? salmonState.scale : 1.0;
+        const size = Math.max(64, Math.round(512 * currentScale * (cameraBound / 1.15)));
 
         if (threeCanvas.width !== size || threeCanvas.height !== size) {
             threeCanvas.width = size;
@@ -1895,6 +2247,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         drawRotationGuideRing(overlayCtx);
         drawCropGuideOverlay(overlayCtx);
+
+        if (currentMode === 'subtitle' && subtitleState.visible) {
+            overlayCtx.save();
+            overlayCtx.strokeStyle = '#2e7d32';
+            overlayCtx.lineWidth = 1.5;
+            overlayCtx.setLineDash([5, 3]);
+
+            overlayCtx.beginPath();
+            overlayCtx.arc(subtitleState.x, subtitleState.y, 8, 0, Math.PI * 2);
+            overlayCtx.stroke();
+
+            overlayCtx.fillStyle = '#2e7d32';
+            overlayCtx.beginPath();
+            overlayCtx.arc(subtitleState.x, subtitleState.y, 3, 0, Math.PI * 2);
+            overlayCtx.fill();
+
+            overlayCtx.restore();
+        }
 
         if (bonitoParticles.length > 0) {
             bonitoParticles.forEach(p => drawBonitoFlake(overlayCtx, p));
