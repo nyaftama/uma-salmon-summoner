@@ -2056,13 +2056,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const fontFamily = '"Noto Serif JP", serif';
         const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
         const scaleRatio = (refDim / 800) * subtitleState.scale;
-        const fontSize = Math.round(38 * scaleRatio);
-        const strokeWidth = Math.max(2, 4.5 * scaleRatio);
+        
+        let fontSize = Math.round(38 * scaleRatio);
+        let strokeWidth = Math.max(2, 4.5 * scaleRatio);
+        let lineGap = 12 * scaleRatio;
+
+        // キャンバス幅を超過する場合の自動縮小計算
+        const canvasWidth = bgImage ? mainCanvas.width : 800;
+        const allowedWidth = canvasWidth * 0.94;
+
+        ctx.font = `900 ${fontSize}px ${fontFamily}`;
+        const w1 = text1 ? ctx.measureText(text1).width : 0;
+        const w2 = text2 ? ctx.measureText(text2).width : 0;
+        const maxTextWidth = Math.max(w1, w2);
+
+        if (maxTextWidth > allowedWidth && maxTextWidth > 0) {
+            const fitScale = allowedWidth / maxTextWidth;
+            fontSize = Math.max(10, Math.floor(fontSize * fitScale));
+            strokeWidth = Math.max(1.5, strokeWidth * fitScale);
+            lineGap = lineGap * fitScale;
+        }
 
         ctx.lineJoin = 'round';
         ctx.miterLimit = 3.0;
 
-        const lineGap = 12 * scaleRatio;
         let l1Y = cy;
         let l2Y = cy;
 
