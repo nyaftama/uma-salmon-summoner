@@ -1,7 +1,7 @@
 /**
  * ウマ娘 なんでもSHAKEROCKメーカー - アプリケーションロジック
  * @author @nyaftama
- * @version 1.01
+ * @version 1.02
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cropToggleRow = document.getElementById('cropToggleRow');
     const maskToolToggleRow = document.getElementById('maskToolToggleRow');
     const maskUndoToggleRow = document.getElementById('maskUndoToggleRow');
+    const dragHintOverlay = document.getElementById('dragHintOverlay');
     const logoEnableToggleRow = document.getElementById('logoEnableToggleRow');
     const subtitleEnableToggleRow = document.getElementById('subtitleEnableToggleRow');
     const overlaySelectors = document.querySelectorAll('.canvas-overlay-drag-selector');
@@ -342,25 +343,30 @@ document.addEventListener('DOMContentLoaded', () => {
             'rgba(175, 75, 30, 0.8)'
         ];
 
+        const baseDim = bgImage ? Math.max(bgImage.width, bgImage.height) : (mainCanvas.width ? Math.max(mainCanvas.width, mainCanvas.height) : 800);
+        const resScale = baseDim / 800;
+
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 0.8 + Math.random() * 2.2;
+            const speed = (0.8 + Math.random() * 2.2) * resScale;
             const spread = (actualBrushSize / 2) * (0.2 + Math.random() * 0.8);
 
             bonitoParticles.push({
                 x: x + Math.cos(angle) * spread,
                 y: y + Math.sin(angle) * spread,
-                vx: Math.cos(angle) * speed * 0.4 + (Math.random() - 0.5) * 1.2,
-                vy: Math.sin(angle) * speed * 0.4 - 1.2 - Math.random() * 1.5,
+                vx: Math.cos(angle) * speed * 0.4 + (Math.random() - 0.5) * 1.2 * resScale,
+                vy: Math.sin(angle) * speed * 0.4 - (1.2 + Math.random() * 1.5) * resScale,
+                gravity: 0.12 * resScale,
                 rot: Math.random() * Math.PI * 2,
                 vRot: (Math.random() - 0.5) * 0.25,
-                size: 5 + Math.random() * 8,
+                size: (0.007 + Math.random() * 0.010) * baseDim,
                 scaleX: 1.0 + (Math.random() - 0.5) * 0.4,
                 scaleY: 0.4 + (Math.random() - 0.5) * 0.2,
                 life: 1.0,
                 decay: 0.035 + Math.random() * 0.025,
                 alpha: 0.8 + Math.random() * 0.2,
-                color: colors[Math.floor(Math.random() * colors.length)]
+                color: colors[Math.floor(Math.random() * colors.length)],
+                resScale: resScale
             });
         }
 
@@ -381,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const p = bonitoParticles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.12;
+            p.vy += (p.gravity || 0.12);
             p.vx *= 0.96;
             p.rot += p.vRot;
             p.life -= p.decay;
@@ -413,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fill();
 
         ctx.strokeStyle = 'rgba(255, 220, 180, 0.45)';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = Math.max(1, (p.resScale || 1));
         ctx.stroke();
 
         ctx.restore();
@@ -446,8 +452,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let salmonDragMode = 'move';
     let logoDragMode = 'move';
     let currentTool = 'erase';
-    let brushSizePct = 3.0;
+    let brushSizePct = 5.0;
+    let brushShape = 'circle'; // 'circle' | 'square' | 'triangle' | 'triangle-down'
     let isDrawing = false;
+    let isDragTargetHit = false;
+    let activeDragAction = 'none'; // 'none' | 'move' | 'resize' | 'rotate'
+    let initialResizeDist = 0;
+    let initialResizeScale = 1.0;
+    let hoveredHandle = null;
     let lastDrawPos = null;
     let lastScreenPos = null;
 
@@ -1159,6 +1171,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             currentMode = btn.dataset.mode;
 
+            if (dragHintOverlay) {
+                dragHintOverlay.style.display = (currentMode === 'crop' || currentMode === 'logo' || currentMode === 'subtitle') ? 'inline-flex' : 'none';
+            }
+
             if (currentMode === 'salmon') {
                 salmonDragToggleRow.style.display = 'flex';
                 if (cropToggleRow) cropToggleRow.style.display = 'none';
@@ -1203,7 +1219,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 logoToolsCard.style.display = 'none';
                 if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
                 if (fishToolsCard) fishToolsCard.style.display = 'none';
-                showToast('ドラッグして背景画像を移動できます');
             } else if (currentMode === 'eraseSalmon') {
                 salmonDragToggleRow.style.display = 'none';
                 if (cropToggleRow) cropToggleRow.style.display = 'none';
@@ -1214,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 eraserToolsCard.style.display = 'block';
                 logoToolsCard.style.display = 'none';
                 if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
-                if (fishToolsCard) fishToolsCard.style.display = 'block';
+                if (fishToolsCard) fishToolsCard.style.display = 'none';
             }
 
             requestRender();
@@ -1249,7 +1264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     brushSizeInput.addEventListener('input', (e) => {
-        brushSizePct = parseFloat(e.target.value) || 3.0;
+        brushSizePct = parseFloat(e.target.value) || 5.0;
         brushSizeVal.textContent = `${brushSizePct.toFixed(1)}%`;
         updateBrushCursorSize();
 
@@ -1265,6 +1280,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1200);
         }
     });
+
+    const brushShapeSelector = document.getElementById('brushShapeSelector');
+    if (brushShapeSelector) {
+        brushShapeSelector.querySelectorAll('.shape-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                brushShapeSelector.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                brushShape = btn.getAttribute('data-shape') || 'circle';
+                updateBrushCursorSize();
+
+                if (currentMode === 'eraseSalmon') {
+                    const workspaceRect = canvasWorkspace.getBoundingClientRect();
+                    brushCursor.style.left = `${workspaceRect.width / 2}px`;
+                    brushCursor.style.top = `${workspaceRect.height / 2}px`;
+                    brushCursor.style.display = 'block';
+
+                    clearTimeout(brushPreviewTimeout);
+                    brushPreviewTimeout = setTimeout(() => {
+                        brushCursor.style.display = 'none';
+                    }, 1200);
+                }
+            });
+        });
+    }
 
     undoEraseBtn.addEventListener('click', () => undoSalmonErase());
     clearEraseBtn.addEventListener('click', () => clearSalmonErase());
@@ -1393,16 +1432,18 @@ document.addEventListener('DOMContentLoaded', () => {
         validateAllInputs();
     }
 
-    // --- 3Dおさかなコントロール ---
-    salmonScaleInput.addEventListener('input', (e) => {
-        const pct = parseInt(e.target.value, 10);
-        salmonScaleVal.textContent = `${pct}%`;
-        if (bgImage) {
-            const baseScale = getBaseSalmonScale(bgImage.width);
-            salmonState.scale = (pct / 100) * baseScale;
-            renderAll();
-        }
-    });
+    // --- おさかな設定コントロール ---
+    if (salmonScaleInput) {
+        salmonScaleInput.addEventListener('input', (e) => {
+            const pct = parseInt(e.target.value, 10);
+            if (salmonScaleVal) salmonScaleVal.textContent = `${pct}%`;
+            if (bgImage) {
+                const baseScale = getBaseSalmonScale(bgImage.width);
+                salmonState.scale = (pct / 100) * baseScale;
+                renderAll();
+            }
+        });
+    }
 
     if (salmonRotZInput) {
         salmonRotZInput.addEventListener('input', (e) => {
@@ -1519,6 +1560,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvasWorkspace.addEventListener('mousemove', (e) => {
         updateBrushCursorPos(e);
+        updateCanvasCursor(e);
         if (isDrawing && bgImage) {
             const pos = getCanvasPos(e);
             handleDrawStroke(pos, e);
@@ -1532,15 +1574,75 @@ document.addEventListener('DOMContentLoaded', () => {
         lastDrawPos = pos;
         lastScreenPos = { x: e.clientX, y: e.clientY };
 
-        if (currentMode === 'eraseSalmon') {
+        if (currentMode === 'salmon') {
+            if (salmonDragMode === 'move') {
+                const hPos = getSalmonHandlePos();
+                if (isNearHandle(pos, hPos)) {
+                    activeDragAction = 'resize';
+                    isDragTargetHit = true;
+                    initialResizeDist = Math.max(10, Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y));
+                    initialResizeScale = salmonState.scale;
+                } else if (isInsideSalmonBounds(pos)) {
+                    activeDragAction = 'move';
+                    isDragTargetHit = true;
+                } else {
+                    activeDragAction = 'none';
+                    isDragTargetHit = false;
+                }
+            } else {
+                activeDragAction = 'rotate';
+                isDragTargetHit = true;
+            }
+        } else if (currentMode === 'logo') {
+            if (logoDragMode === 'move') {
+                const hPos = getLogoHandlePos();
+                if (isNearHandle(pos, hPos)) {
+                    activeDragAction = 'resize';
+                    isDragTargetHit = true;
+                    initialResizeDist = Math.max(10, Math.hypot(pos.x - logoState.x, pos.y - logoState.y));
+                    initialResizeScale = logoState.scale;
+                } else if (isInsideLogoBounds(pos)) {
+                    activeDragAction = 'move';
+                    isDragTargetHit = true;
+                } else {
+                    activeDragAction = 'none';
+                    isDragTargetHit = false;
+                }
+            } else {
+                activeDragAction = 'rotate';
+                isDragTargetHit = true;
+            }
+        } else if (currentMode === 'subtitle') {
+            const hPos = getSubtitleHandlePos();
+            if (isNearHandle(pos, hPos)) {
+                activeDragAction = 'resize';
+                isDragTargetHit = true;
+                initialResizeDist = Math.max(10, Math.hypot(pos.x - subtitleState.x, pos.y - subtitleState.y));
+                initialResizeScale = subtitleState.scale;
+            } else if (isInsideSubtitleBounds(pos)) {
+                activeDragAction = 'move';
+                isDragTargetHit = true;
+            } else {
+                activeDragAction = 'none';
+                isDragTargetHit = false;
+            }
+        } else if (currentMode === 'crop') {
+            activeDragAction = 'move';
+            isDragTargetHit = true;
+        } else if (currentMode === 'eraseSalmon') {
+            activeDragAction = 'erase';
+            isDragTargetHit = true;
             saveSalmonEraseUndoState();
             handleDrawStroke(pos, e);
         }
+        updateCanvasCursor(e);
         renderOverlay();
     });
 
     window.addEventListener('mouseup', () => {
         isDrawing = false;
+        isDragTargetHit = false;
+        activeDragAction = 'none';
         lastDrawPos = null;
         lastScreenPos = null;
         if (bgImage) renderOverlay();
@@ -1554,7 +1656,64 @@ document.addEventListener('DOMContentLoaded', () => {
         lastDrawPos = pos;
         lastScreenPos = { x: touch.clientX, y: touch.clientY };
 
-        if (currentMode === 'eraseSalmon') {
+        if (currentMode === 'salmon') {
+            if (salmonDragMode === 'move') {
+                const hPos = getSalmonHandlePos();
+                if (isNearHandle(pos, hPos)) {
+                    activeDragAction = 'resize';
+                    isDragTargetHit = true;
+                    initialResizeDist = Math.max(10, Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y));
+                    initialResizeScale = salmonState.scale;
+                } else if (isInsideSalmonBounds(pos)) {
+                    activeDragAction = 'move';
+                    isDragTargetHit = true;
+                } else {
+                    activeDragAction = 'none';
+                    isDragTargetHit = false;
+                }
+            } else {
+                activeDragAction = 'rotate';
+                isDragTargetHit = true;
+            }
+        } else if (currentMode === 'logo') {
+            if (logoDragMode === 'move') {
+                const hPos = getLogoHandlePos();
+                if (isNearHandle(pos, hPos)) {
+                    activeDragAction = 'resize';
+                    isDragTargetHit = true;
+                    initialResizeDist = Math.max(10, Math.hypot(pos.x - logoState.x, pos.y - logoState.y));
+                    initialResizeScale = logoState.scale;
+                } else if (isInsideLogoBounds(pos)) {
+                    activeDragAction = 'move';
+                    isDragTargetHit = true;
+                } else {
+                    activeDragAction = 'none';
+                    isDragTargetHit = false;
+                }
+            } else {
+                activeDragAction = 'rotate';
+                isDragTargetHit = true;
+            }
+        } else if (currentMode === 'subtitle') {
+            const hPos = getSubtitleHandlePos();
+            if (isNearHandle(pos, hPos)) {
+                activeDragAction = 'resize';
+                isDragTargetHit = true;
+                initialResizeDist = Math.max(10, Math.hypot(pos.x - subtitleState.x, pos.y - subtitleState.y));
+                initialResizeScale = subtitleState.scale;
+            } else if (isInsideSubtitleBounds(pos)) {
+                activeDragAction = 'move';
+                isDragTargetHit = true;
+            } else {
+                activeDragAction = 'none';
+                isDragTargetHit = false;
+            }
+        } else if (currentMode === 'crop') {
+            activeDragAction = 'move';
+            isDragTargetHit = true;
+        } else if (currentMode === 'eraseSalmon') {
+            activeDragAction = 'erase';
+            isDragTargetHit = true;
             saveSalmonEraseUndoState();
             handleDrawStroke(pos, touch);
         }
@@ -1568,6 +1727,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const pos = getCanvasPos(touch);
 
         if (currentMode === 'salmon' && lastDrawPos && lastScreenPos) {
+            if (salmonDragMode === 'move' && !isDragTargetHit) {
+                lastDrawPos = pos;
+                lastScreenPos = { x: touch.clientX, y: touch.clientY };
+                return;
+            }
+
             const dx = pos.x - lastDrawPos.x;
             const dy = pos.y - lastDrawPos.y;
 
@@ -1575,8 +1740,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const screenDy = touch.clientY - lastScreenPos.y;
 
             if (salmonDragMode === 'move') {
-                salmonState.x += dx;
-                salmonState.y += dy;
+                if (activeDragAction === 'resize') {
+                    const currentDist = Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y);
+                    if (initialResizeDist > 5) {
+                        const ratio = currentDist / initialResizeDist;
+                        const baseScale = getBaseSalmonScale(bgImage.width) || 1;
+                        let targetPct = Math.round(((initialResizeScale * ratio) / baseScale) * 100);
+                        targetPct = Math.max(20, Math.min(300, targetPct));
+                        salmonState.scale = (targetPct / 100) * baseScale;
+                        if (salmonScaleInput) salmonScaleInput.value = targetPct;
+                        if (salmonScaleVal) salmonScaleVal.textContent = `${targetPct}%`;
+                    }
+                } else {
+                    salmonState.x += dx;
+                    salmonState.y += dy;
+                }
             } else if (salmonDragMode === 'rotate') {
                 const radZ = (salmonState.rotZ * Math.PI) / 180;
                 const cosZ = Math.cos(radZ);
@@ -1610,13 +1788,32 @@ document.addEventListener('DOMContentLoaded', () => {
             lastScreenPos = { x: touch.clientX, y: touch.clientY };
             renderAll();
         } else if (currentMode === 'logo' && lastDrawPos && lastScreenPos) {
+            if (logoDragMode === 'move' && !isDragTargetHit) {
+                lastDrawPos = pos;
+                lastScreenPos = { x: touch.clientX, y: touch.clientY };
+                return;
+            }
+
             const dx = pos.x - lastDrawPos.x;
             const dy = pos.y - lastDrawPos.y;
             const screenDx = touch.clientX - lastScreenPos.x;
 
             if (logoDragMode === 'move') {
-                logoState.x += dx;
-                logoState.y += dy;
+                if (activeDragAction === 'resize') {
+                    const currentDist = Math.hypot(pos.x - logoState.x, pos.y - logoState.y);
+                    if (initialResizeDist > 5) {
+                        const ratio = currentDist / initialResizeDist;
+                        let targetScale = initialResizeScale * ratio;
+                        targetScale = Math.max(0.3, Math.min(2.5, targetScale));
+                        logoState.scale = targetScale;
+                        const pct = Math.round(targetScale * 100);
+                        if (logoScaleInput) logoScaleInput.value = pct;
+                        if (logoScaleVal) logoScaleVal.textContent = `${pct}%`;
+                    }
+                } else {
+                    logoState.x += dx;
+                    logoState.y += dy;
+                }
             } else if (logoDragMode === 'rotate') {
                 const cx = logoState.x;
                 const cy = logoState.y;
@@ -1642,10 +1839,28 @@ document.addEventListener('DOMContentLoaded', () => {
             lastScreenPos = { x: touch.clientX, y: touch.clientY };
             renderAll();
         } else if (currentMode === 'subtitle' && lastDrawPos) {
-            const dx = pos.x - lastDrawPos.x;
-            const dy = pos.y - lastDrawPos.y;
-            subtitleState.x += dx;
-            subtitleState.y += dy;
+            if (!isDragTargetHit) {
+                lastDrawPos = pos;
+                return;
+            }
+
+            if (activeDragAction === 'resize') {
+                const currentDist = Math.hypot(pos.x - subtitleState.x, pos.y - subtitleState.y);
+                if (initialResizeDist > 5) {
+                    const ratio = currentDist / initialResizeDist;
+                    let targetScale = initialResizeScale * ratio;
+                    targetScale = Math.max(0.4, Math.min(2.5, targetScale));
+                    subtitleState.scale = targetScale;
+                    const pct = Math.round(targetScale * 100);
+                    if (subtitleScaleInput) subtitleScaleInput.value = pct;
+                    if (subtitleScaleVal) subtitleScaleVal.textContent = `${pct}%`;
+                }
+            } else {
+                const dx = pos.x - lastDrawPos.x;
+                const dy = pos.y - lastDrawPos.y;
+                subtitleState.x += dx;
+                subtitleState.y += dy;
+            }
             lastDrawPos = pos;
             renderAll();
         } else if (currentMode === 'crop' && lastDrawPos) {
@@ -1676,6 +1891,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvasWorkspace.addEventListener('touchend', () => {
         isDrawing = false;
+        isDragTargetHit = false;
         lastDrawPos = null;
         lastScreenPos = null;
     });
@@ -1710,12 +1926,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const displaySize = Math.max(6, actualBrushSize * displayScale);
         brushCursor.style.width = `${displaySize}px`;
         brushCursor.style.height = `${displaySize}px`;
+
+        let svgContent = '';
+        if (brushShape === 'square') {
+            svgContent = `<svg viewBox="0 0 100 100" style="width:100%;height:100%;display:block;overflow:visible;">
+                <rect x="3" y="3" width="94" height="94" rx="3" stroke="#2e7d32" stroke-width="4" fill="rgba(46, 125, 50, 0.25)" />
+            </svg>`;
+        } else if (brushShape === 'triangle') {
+            svgContent = `<svg viewBox="0 0 100 100" style="width:100%;height:100%;display:block;overflow:visible;">
+                <polygon points="50,3 97,97 3,97" stroke="#2e7d32" stroke-width="4" stroke-linejoin="round" fill="rgba(46, 125, 50, 0.25)" />
+            </svg>`;
+        } else if (brushShape === 'triangle-down') {
+            svgContent = `<svg viewBox="0 0 100 100" style="width:100%;height:100%;display:block;overflow:visible;">
+                <polygon points="50,97 3,3 97,3" stroke="#2e7d32" stroke-width="4" stroke-linejoin="round" fill="rgba(46, 125, 50, 0.25)" />
+            </svg>`;
+        } else {
+            svgContent = `<svg viewBox="0 0 100 100" style="width:100%;height:100%;display:block;overflow:visible;">
+                <circle cx="50" cy="50" r="47" stroke="#2e7d32" stroke-width="4" fill="rgba(46, 125, 50, 0.25)" />
+            </svg>`;
+        }
+        brushCursor.innerHTML = svgContent;
     }
 
-    // --- 消しゴム・マスク描画 ---
+    function drawBrushShape(ctx, x, y, size, shape) {
+        const half = size / 2;
+        ctx.beginPath();
+        if (shape === 'square') {
+            ctx.rect(x - half, y - half, size, size);
+        } else if (shape === 'triangle') {
+            ctx.moveTo(x, y - half);
+            ctx.lineTo(x + half, y + half);
+            ctx.lineTo(x - half, y + half);
+            ctx.closePath();
+        } else if (shape === 'triangle-down') {
+            ctx.moveTo(x, y + half);
+            ctx.lineTo(x - half, y - half);
+            ctx.lineTo(x + half, y - half);
+            ctx.closePath();
+        } else {
+            ctx.arc(x, y, half, 0, Math.PI * 2);
+        }
+    }
+
+    // --- マスク描画（削り・復元） ---
     function handleDrawStroke(pos, e) {
         if (currentMode === 'salmon') {
             if (lastDrawPos && lastScreenPos && e) {
+                if (salmonDragMode === 'move' && !isDragTargetHit) {
+                    lastDrawPos = pos;
+                    lastScreenPos = { x: e.clientX, y: e.clientY };
+                    return;
+                }
+
                 const dx = pos.x - lastDrawPos.x;
                 const dy = pos.y - lastDrawPos.y;
 
@@ -1723,8 +1985,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const screenDy = e.clientY - lastScreenPos.y;
 
                 if (salmonDragMode === 'move') {
-                    salmonState.x += dx;
-                    salmonState.y += dy;
+                    if (activeDragAction === 'resize') {
+                        const currentDist = Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y);
+                        if (initialResizeDist > 5) {
+                            const ratio = currentDist / initialResizeDist;
+                            const baseScale = getBaseSalmonScale(bgImage.width) || 1;
+                            let targetPct = Math.round(((initialResizeScale * ratio) / baseScale) * 100);
+                            targetPct = Math.max(20, Math.min(300, targetPct));
+                            salmonState.scale = (targetPct / 100) * baseScale;
+                            if (salmonScaleInput) salmonScaleInput.value = targetPct;
+                            if (salmonScaleVal) salmonScaleVal.textContent = `${targetPct}%`;
+                        }
+                    } else {
+                        salmonState.x += dx;
+                        salmonState.y += dy;
+                    }
                 } else if (salmonDragMode === 'rotate') {
                     const radZ = (salmonState.rotZ * Math.PI) / 180;
                     const cosZ = Math.cos(radZ);
@@ -1763,13 +2038,32 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         } else if (currentMode === 'logo') {
             if (lastDrawPos && lastScreenPos && e) {
+                if (logoDragMode === 'move' && !isDragTargetHit) {
+                    lastDrawPos = pos;
+                    lastScreenPos = { x: e.clientX, y: e.clientY };
+                    return;
+                }
+
                 const dx = pos.x - lastDrawPos.x;
                 const dy = pos.y - lastDrawPos.y;
                 const screenDx = e.clientX - lastScreenPos.x;
 
                 if (logoDragMode === 'move') {
-                    logoState.x += dx;
-                    logoState.y += dy;
+                    if (activeDragAction === 'resize') {
+                        const currentDist = Math.hypot(pos.x - logoState.x, pos.y - logoState.y);
+                        if (initialResizeDist > 5) {
+                            const ratio = currentDist / initialResizeDist;
+                            let targetScale = initialResizeScale * ratio;
+                            targetScale = Math.max(0.3, Math.min(2.5, targetScale));
+                            logoState.scale = targetScale;
+                            const pct = Math.round(targetScale * 100);
+                            if (logoScaleInput) logoScaleInput.value = pct;
+                            if (logoScaleVal) logoScaleVal.textContent = `${pct}%`;
+                        }
+                    } else {
+                        logoState.x += dx;
+                        logoState.y += dy;
+                    }
                 } else if (logoDragMode === 'rotate') {
                     const cx = logoState.x;
                     const cy = logoState.y;
@@ -1799,11 +2093,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         } else if (currentMode === 'subtitle') {
-            if (lastDrawPos) {
-                const dx = pos.x - lastDrawPos.x;
-                const dy = pos.y - lastDrawPos.y;
-                subtitleState.x += dx;
-                subtitleState.y += dy;
+            if (lastDrawPos && isDragTargetHit) {
+                if (activeDragAction === 'resize') {
+                    const currentDist = Math.hypot(pos.x - subtitleState.x, pos.y - subtitleState.y);
+                    if (initialResizeDist > 5) {
+                        const ratio = currentDist / initialResizeDist;
+                        let targetScale = initialResizeScale * ratio;
+                        targetScale = Math.max(0.4, Math.min(2.5, targetScale));
+                        subtitleState.scale = targetScale;
+                        const pct = Math.round(targetScale * 100);
+                        if (subtitleScaleInput) subtitleScaleInput.value = pct;
+                        if (subtitleScaleVal) subtitleScaleVal.textContent = `${pct}%`;
+                    }
+                } else {
+                    const dx = pos.x - lastDrawPos.x;
+                    const dy = pos.y - lastDrawPos.y;
+                    subtitleState.x += dx;
+                    subtitleState.y += dy;
+                }
                 renderAll();
             }
             lastDrawPos = pos;
@@ -1841,22 +2148,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const actualBrushSize = getActualBrushPixelSize();
 
+        const dist = lastDrawPos ? Math.hypot(pos.x - lastDrawPos.x, pos.y - lastDrawPos.y) : 0;
+        const step = Math.max(1, actualBrushSize * 0.12);
+        const count = Math.max(1, Math.ceil(dist / step));
+
         if (currentTool === 'erase') {
             salmonEraseCtx.fillStyle = '#ffffff';
-            salmonEraseCtx.beginPath();
-            salmonEraseCtx.arc(pos.x, pos.y, actualBrushSize / 2, 0, Math.PI * 2);
-            salmonEraseCtx.fill();
+            for (let i = 1; i <= count; i++) {
+                const t = i / count;
+                const ix = lastDrawPos ? (lastDrawPos.x + (pos.x - lastDrawPos.x) * t) : pos.x;
+                const iy = lastDrawPos ? (lastDrawPos.y + (pos.y - lastDrawPos.y) * t) : pos.y;
+                drawBrushShape(salmonEraseCtx, ix, iy, actualBrushSize, brushShape);
+                salmonEraseCtx.fill();
+            }
 
             spawnBonitoFlakes(pos.x, pos.y, actualBrushSize);
         } else if (currentTool === 'restore') {
             salmonEraseCtx.save();
             salmonEraseCtx.globalCompositeOperation = 'destination-out';
-            salmonEraseCtx.beginPath();
-            salmonEraseCtx.arc(pos.x, pos.y, actualBrushSize / 2, 0, Math.PI * 2);
-            salmonEraseCtx.fill();
+            for (let i = 1; i <= count; i++) {
+                const t = i / count;
+                const ix = lastDrawPos ? (lastDrawPos.x + (pos.x - lastDrawPos.x) * t) : pos.x;
+                const iy = lastDrawPos ? (lastDrawPos.y + (pos.y - lastDrawPos.y) * t) : pos.y;
+                drawBrushShape(salmonEraseCtx, ix, iy, actualBrushSize, brushShape);
+                salmonEraseCtx.fill();
+            }
             salmonEraseCtx.restore();
         }
 
+        lastDrawPos = pos;
+        if (e) {
+            lastScreenPos = { x: e.clientX, y: e.clientY };
+        }
         renderAll();
     }
 
@@ -1880,7 +2203,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSalmonEraseUndoState();
         salmonEraseCtx.clearRect(0, 0, salmonEraseCanvas.width, salmonEraseCanvas.height);
         renderAll();
-        showToast('削りを全消去しました');
+        showToast('マスクを消去しました');
     }
 
     // --- Popロゴ描画ジェネレーター ---
@@ -2056,7 +2379,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fontFamily = '"Noto Serif JP", serif';
         const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
         const scaleRatio = (refDim / 800) * subtitleState.scale;
-        
+
         let fontSize = Math.round(38 * scaleRatio);
         let strokeWidth = Math.max(2, 4.5 * scaleRatio);
         let lineGap = 12 * scaleRatio;
@@ -2154,12 +2477,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ロゴ描画（マスクモード時は非表示、字幕モード時は55%透過、書き出し時は常に不透明描画）
+        // ロゴ描画（マスクモード時は非表示、字幕・おさかなモード時は55%透過、書き出し時は常に不透明描画）
         const shouldDrawLogo = logoState.visible && (forExport || currentMode !== 'eraseSalmon') && (logoState.line1 || logoState.line2);
         if (shouldDrawLogo) {
             const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
             const baseLogoScale = (refDim / 800) * logoState.scale;
-            if (!forExport && currentMode === 'subtitle') {
+            if (!forExport && (currentMode === 'subtitle' || currentMode === 'salmon')) {
                 mainCtx.save();
                 mainCtx.globalAlpha = 0.55;
                 drawPopLogo(
@@ -2185,12 +2508,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 字幕描画（マスクモード時は非表示、ロゴモード時は55%透過、書き出し時は常に不透明描画）
+        // 字幕描画（マスクモード時は非表示、ロゴ・おさかなモード時は55%透過、書き出し時は常に不透明描画）
         const shouldDrawSubtitle = subtitleState.visible && (forExport || currentMode !== 'eraseSalmon') && (subtitleState.line1 || subtitleState.line2);
         if (shouldDrawSubtitle) {
             const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
             const baseSubScale = (refDim / 800) * subtitleState.scale;
-            if (!forExport && currentMode === 'logo') {
+            if (!forExport && (currentMode === 'logo' || currentMode === 'salmon')) {
                 mainCtx.save();
                 mainCtx.globalAlpha = 0.55;
                 drawSubtitles(
@@ -2243,6 +2566,637 @@ document.addEventListener('DOMContentLoaded', () => {
         threeRenderer.render(threeScene, threeCamera);
     }
 
+    function isNearHandle(pos, handlePos, maxDist = 24) {
+        if (!pos || !handlePos) return false;
+        return Math.hypot(pos.x - handlePos.x, pos.y - handlePos.y) <= maxDist;
+    }
+
+    function getSubtitleHandlePos() {
+        const bounds = getSubtitleBounds();
+        if (!bounds) return null;
+        return {
+            x: bounds.x + bounds.width,
+            y: bounds.y,
+            angleRad: 0
+        };
+    }
+
+    function getLogoHandlePos() {
+        const bounds = getLogoBounds();
+        if (!bounds) return null;
+        const radZ = (bounds.rotZ * Math.PI) / 180;
+        const cosZ = Math.cos(radZ);
+        const sinZ = Math.sin(radZ);
+        const lx = bounds.localW / 2;
+        const ly = -bounds.localH / 2;
+        return {
+            x: bounds.cx + lx * cosZ - ly * sinZ,
+            y: bounds.cy + lx * sinZ + ly * cosZ,
+            angleRad: radZ
+        };
+    }
+
+    function getSalmonHandlePos() {
+        if (!bgImage || !isSalmonLoaded) return null;
+        const hash = `${currentFishType}_${Math.round(salmonState.rotX)}_${Math.round(salmonState.rotY)}_${Math.round(salmonState.bulge * 100)}_${Math.round(threeCanvas.width)}`;
+        if (hash !== lastContourHash || !cachedFishContourPath) {
+            cachedFishContourPath = generateFishContourPath();
+            lastContourHash = hash;
+        }
+
+        const localPt = cachedFishTopRightLocal || {
+            x: (512 * salmonAspect * salmonState.scale) / 2,
+            y: -(512 * salmonState.scale) / 2
+        };
+        const radZ = (salmonState.rotZ * Math.PI) / 180;
+        const cosZ = Math.cos(radZ);
+        const sinZ = Math.sin(radZ);
+        return {
+            x: salmonState.x + localPt.x * cosZ - localPt.y * sinZ,
+            y: salmonState.y + localPt.x * sinZ + localPt.y * cosZ,
+            angleRad: radZ
+        };
+    }
+
+    function drawResizeHandle(ctx, hx, hy, angleRad = 0, isHovered = false, isActive = false) {
+        ctx.save();
+        ctx.translate(hx, hy);
+
+        const r = isActive ? 15 : (isHovered ? 14 : 12);
+
+        // ドロップシャドウ
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+
+        // 白背景の円
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        // 輪郭線
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = 2.0;
+        ctx.strokeStyle = isActive ? '#1b5e20' : (isHovered ? '#388e3c' : '#2e7d32');
+        ctx.stroke();
+
+        // 斜め双方向リサイズ矢印アイコン（右上がり対角線）
+        ctx.rotate(angleRad + Math.PI / 4);
+
+        ctx.strokeStyle = isActive ? '#1b5e20' : (isHovered ? '#388e3c' : '#2e7d32');
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const len = r * 0.52;
+        const arrowSz = 3.2;
+
+        // 軸線
+        ctx.beginPath();
+        ctx.moveTo(0, -len);
+        ctx.lineTo(0, len);
+        ctx.stroke();
+
+        // 上側矢印
+        ctx.beginPath();
+        ctx.moveTo(-arrowSz, -len + arrowSz);
+        ctx.lineTo(0, -len);
+        ctx.lineTo(arrowSz, -len + arrowSz);
+        ctx.stroke();
+
+        // 下側矢印
+        ctx.beginPath();
+        ctx.moveTo(-arrowSz, len - arrowSz);
+        ctx.lineTo(0, len);
+        ctx.lineTo(arrowSz, len - arrowSz);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    function updateCanvasCursor(e) {
+        if (!bgImage) {
+            canvasWorkspace.style.cursor = 'default';
+            return;
+        }
+        if (currentMode === 'eraseSalmon') {
+            canvasWorkspace.style.cursor = 'none';
+            return;
+        }
+        if (currentMode === 'crop') {
+            canvasWorkspace.style.cursor = isDrawing ? 'grabbing' : 'grab';
+            return;
+        }
+
+        const pos = getCanvasPos(e);
+        const prevHovered = hoveredHandle;
+        hoveredHandle = null;
+
+        if (currentMode === 'salmon') {
+            if (salmonDragMode === 'move') {
+                const hPos = getSalmonHandlePos();
+                if (isNearHandle(pos, hPos)) {
+                    hoveredHandle = 'salmon';
+                    canvasWorkspace.style.cursor = 'nesw-resize';
+                } else if (activeDragAction === 'resize') {
+                    canvasWorkspace.style.cursor = 'nesw-resize';
+                } else {
+                    const hit = isInsideSalmonBounds(pos);
+                    canvasWorkspace.style.cursor = hit ? (isDrawing ? 'grabbing' : 'grab') : 'default';
+                }
+            } else {
+                canvasWorkspace.style.cursor = isDrawing ? 'grabbing' : 'grab';
+            }
+        } else if (currentMode === 'logo') {
+            if (logoDragMode === 'move') {
+                const hPos = getLogoHandlePos();
+                if (isNearHandle(pos, hPos)) {
+                    hoveredHandle = 'logo';
+                    canvasWorkspace.style.cursor = 'nesw-resize';
+                } else if (activeDragAction === 'resize') {
+                    canvasWorkspace.style.cursor = 'nesw-resize';
+                } else {
+                    const hit = isInsideLogoBounds(pos);
+                    canvasWorkspace.style.cursor = hit ? (isDrawing ? 'grabbing' : 'grab') : 'default';
+                }
+            } else {
+                canvasWorkspace.style.cursor = isDrawing ? 'grabbing' : 'grab';
+            }
+        } else if (currentMode === 'subtitle') {
+            const hPos = getSubtitleHandlePos();
+            if (isNearHandle(pos, hPos)) {
+                hoveredHandle = 'subtitle';
+                canvasWorkspace.style.cursor = 'nesw-resize';
+            } else if (activeDragAction === 'resize') {
+                canvasWorkspace.style.cursor = 'nesw-resize';
+            } else {
+                const hit = isInsideSubtitleBounds(pos);
+                canvasWorkspace.style.cursor = hit ? (isDrawing ? 'grabbing' : 'grab') : 'default';
+            }
+        } else {
+            canvasWorkspace.style.cursor = 'default';
+        }
+
+        if (prevHovered !== hoveredHandle) {
+            renderOverlay();
+        }
+    }
+
+    function getSubtitleBounds() {
+        if (!subtitleState.visible) return null;
+        const text1 = (subtitleState.line1 || '').trim();
+        const text2 = (subtitleState.line2 || '').trim();
+        if (!text1 && !text2) return null;
+
+        const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
+        const scaleRatio = (refDim / 800) * subtitleState.scale;
+        let fontSize = Math.round(38 * scaleRatio);
+        let lineGap = 12 * scaleRatio;
+
+        const canvasWidth = bgImage ? mainCanvas.width : 800;
+        const allowedWidth = canvasWidth * 0.94;
+
+        mainCtx.save();
+        mainCtx.font = `900 ${fontSize}px "Noto Serif JP", serif`;
+        const w1 = text1 ? mainCtx.measureText(text1).width : 0;
+        const w2 = text2 ? mainCtx.measureText(text2).width : 0;
+        const maxTextWidth = Math.max(w1, w2);
+
+        if (maxTextWidth > allowedWidth && maxTextWidth > 0) {
+            const fitScale = allowedWidth / maxTextWidth;
+            fontSize = Math.max(10, Math.floor(fontSize * fitScale));
+            lineGap = lineGap * fitScale;
+        }
+        mainCtx.restore();
+
+        const padX = Math.max(16, 20 * scaleRatio);
+        const padY = Math.max(10, 14 * scaleRatio);
+        const actualW = maxTextWidth > allowedWidth ? allowedWidth : maxTextWidth;
+        const boxW = Math.max(60, actualW + padX * 2);
+        const boxH = (text1 && text2) ? (fontSize * 2 + lineGap + padY * 2) : (fontSize + padY * 2);
+
+        return {
+            x: subtitleState.x - boxW / 2,
+            y: subtitleState.y - boxH / 2,
+            width: boxW,
+            height: boxH,
+            cx: subtitleState.x,
+            cy: subtitleState.y
+        };
+    }
+
+    function isInsideSubtitleBounds(pos) {
+        const bounds = getSubtitleBounds();
+        if (!bounds) return false;
+        return pos.x >= bounds.x && pos.x <= bounds.x + bounds.width &&
+            pos.y >= bounds.y && pos.y <= bounds.y + bounds.height;
+    }
+
+    function getLogoBounds() {
+        if (!logoState.visible) return null;
+        const l1 = (logoState.line1 || '').trim();
+        const l2 = (logoState.line2 || '').trim();
+        if (!l1 && !l2) return null;
+
+        const baseFontSize = 88;
+        const lineGap = 72;
+        const fontFamily = "'Permanent Marker', cursive, sans-serif";
+
+        mainCtx.save();
+        function measureLine(text, isLine1 = false) {
+            if (!text) return 0;
+            let totalWidth = 0;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const isFirst = (i === 0);
+                const scaleFactor = isFirst ? (isLine1 ? 1.48 : 1.25) : 1.0;
+                const fontSz = baseFontSize * scaleFactor;
+                mainCtx.font = `900 ${fontSz}px ${fontFamily}`;
+                const metrics = mainCtx.measureText(char);
+                totalWidth += metrics.width * 0.97;
+            }
+            return totalWidth;
+        }
+
+        const line1W = measureLine(l1, true);
+        const line2W = measureLine(l2, false);
+        const maxLineW = Math.max(line1W, line2W);
+
+        mainCtx.font = `900 ${baseFontSize * 1.85}px ${fontFamily}`;
+        const exMarkW = mainCtx.measureText('!').width * 1.1;
+        mainCtx.restore();
+
+        const totalW = maxLineW + exMarkW + 15;
+        const totalH = lineGap + baseFontSize * 1.3;
+
+        const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
+        const baseLogoScale = (refDim / 800) * logoState.scale;
+
+        const scaledTextWidth = totalW * baseLogoScale;
+        const maxAllowedWidth = (bgImage ? mainCanvas.width : 800) * 0.88;
+        let autoFitScale = 1.0;
+        if (scaledTextWidth > maxAllowedWidth) {
+            autoFitScale = maxAllowedWidth / scaledTextWidth;
+        }
+        const finalScale = baseLogoScale * autoFitScale;
+
+        const padX = Math.max(20, 24 * finalScale);
+        const padY = Math.max(16, 20 * finalScale);
+        const localW = totalW * finalScale + padX * 2;
+        const localH = totalH * finalScale + padY * 2;
+
+        return {
+            cx: logoState.x,
+            cy: logoState.y,
+            rotZ: logoState.rotZ,
+            localW: localW,
+            localH: localH
+        };
+    }
+
+    function isInsideLogoBounds(pos) {
+        const bounds = getLogoBounds();
+        if (!bounds) return false;
+
+        const dx = pos.x - bounds.cx;
+        const dy = pos.y - bounds.cy;
+        const radZ = (bounds.rotZ * Math.PI) / 180;
+        const localX = dx * Math.cos(-radZ) - dy * Math.sin(-radZ);
+        const localY = dx * Math.sin(-radZ) + dy * Math.cos(-radZ);
+
+        return Math.abs(localX) <= bounds.localW / 2 && Math.abs(localY) <= bounds.localH / 2;
+    }
+
+    let cachedFishContourPath = null;
+    let cachedFishTopRightLocal = null;
+    let lastContourHash = '';
+
+    function generateFishContourPath() {
+        if (!threeCanvas || !threeCanvas.width || !threeCanvas.height) return null;
+
+        const targetDim = 160;
+        const scale = targetDim / Math.max(threeCanvas.width, threeCanvas.height);
+        const tw = Math.max(32, Math.round(threeCanvas.width * scale));
+        const th = Math.max(32, Math.round(threeCanvas.height * scale));
+
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = tw;
+        offCanvas.height = th;
+        const offCtx = offCanvas.getContext('2d');
+
+        offCtx.drawImage(threeCanvas, 0, 0, tw, th);
+
+        let imgData;
+        try {
+            imgData = offCtx.getImageData(0, 0, tw, th);
+        } catch (e) {
+            return null;
+        }
+        const data = imgData.data;
+
+        const grid = new Uint8Array(tw * th);
+        const dilated = new Uint8Array(tw * th);
+
+        for (let y = 0; y < th; y++) {
+            for (let x = 0; x < tw; x++) {
+                const idx = (y * tw + x) * 4;
+                if (data[idx + 3] > 25) {
+                    grid[y * tw + x] = 1;
+                }
+            }
+        }
+
+        // 輪郭から少し離すためのディレーション（膨張処理 r=2）
+        const r = 2;
+        for (let y = 0; y < th; y++) {
+            for (let x = 0; x < tw; x++) {
+                if (grid[y * tw + x]) {
+                    for (let dy = -r; dy <= r; dy++) {
+                        const ny = y + dy;
+                        if (ny < 0 || ny >= th) continue;
+                        for (let dx = -r; dx <= r; dx++) {
+                            const nx = x + dx;
+                            if (nx < 0 || nx >= tw) continue;
+                            if (dx * dx + dy * dy <= r * r + 1) {
+                                dilated[ny * tw + nx] = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Moore-Neighbor 輪郭トレース
+        let startX = -1, startY = -1;
+        for (let y = 0; y < th; y++) {
+            for (let x = 0; x < tw; x++) {
+                if (dilated[y * tw + x]) {
+                    startX = x;
+                    startY = y;
+                    break;
+                }
+            }
+            if (startX !== -1) break;
+        }
+
+        if (startX === -1) return null;
+
+        const points = [];
+        const dxs = [0, 1, 1, 1, 0, -1, -1, -1];
+        const dys = [-1, -1, 0, 1, 1, 1, 0, -1];
+
+        let cx = startX;
+        let cy = startY;
+        const maxSteps = tw * th;
+        let steps = 0;
+
+        points.push({ x: cx, y: cy });
+
+        let prevBackDir = 6;
+
+        while (steps < maxSteps) {
+            steps++;
+            let found = false;
+            let startSearch = (prevBackDir + 1) % 8;
+
+            for (let i = 0; i < 8; i++) {
+                const checkDir = (startSearch + i) % 8;
+                const nx = cx + dxs[checkDir];
+                const ny = cy + dys[checkDir];
+
+                if (nx >= 0 && nx < tw && ny >= 0 && ny < th && dilated[ny * tw + nx]) {
+                    cx = nx;
+                    cy = ny;
+                    prevBackDir = (checkDir + 4) % 8;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) break;
+            if (cx === startX && cy === startY) break;
+
+            points.push({ x: cx, y: cy });
+        }
+
+        if (points.length < 3) return null;
+
+        // サブサンプリング（なめらかな曲線用）
+        const step = Math.max(1, Math.floor(points.length / 80));
+        const subsampled = [];
+        for (let i = 0; i < points.length; i += step) {
+            subsampled.push(points[i]);
+        }
+        if (subsampled.length < 3) return null;
+
+        const invScale = 1.0 / scale;
+        const halfW = threeCanvas.width / 2;
+        const halfH = threeCanvas.height / 2;
+
+        const path = new Path2D();
+        const len = subsampled.length;
+
+        // 輪郭上の最も右上（x - y が最大となる点）を検出
+        let maxScore = -Infinity;
+        let bestLocalX = 0;
+        let bestLocalY = 0;
+
+        // Catmull-Rom スプライン曲線補間
+        for (let i = 0; i < len; i++) {
+            const p0 = subsampled[(i - 1 + len) % len];
+            const p1 = subsampled[i];
+            const p2 = subsampled[(i + 1) % len];
+            const p3 = subsampled[(i + 2) % len];
+
+            const x1 = p1.x * invScale - halfW;
+            const y1 = p1.y * invScale - halfH;
+
+            // スコア算出（上側が負、右側が正）
+            const score = x1 - y1;
+            if (score > maxScore) {
+                maxScore = score;
+                bestLocalX = x1;
+                bestLocalY = y1;
+            }
+
+            if (i === 0) {
+                path.moveTo(x1, y1);
+            }
+
+            const cp1x = p1.x * invScale - halfW + (p2.x - p0.x) * invScale / 6;
+            const cp1y = p1.y * invScale - halfH + (p2.y - p0.y) * invScale / 6;
+            const cp2x = p2.x * invScale - halfW - (p3.x - p1.x) * invScale / 6;
+            const cp2y = p2.y * invScale - halfH - (p3.y - p1.y) * invScale / 6;
+            const x2 = p2.x * invScale - halfW;
+            const y2 = p2.y * invScale - halfH;
+
+            path.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2);
+        }
+
+        path.closePath();
+
+        // ハンドル位置として輪郭の右上端をキャッシュ
+        cachedFishTopRightLocal = {
+            x: bestLocalX + 6,
+            y: bestLocalY - 6
+        };
+
+        return path;
+    }
+
+    function isInsideSalmonBounds(pos) {
+        if (!bgImage || !isSalmonLoaded || !threeCanvas || !threeRenderer) return false;
+
+        const dx = pos.x - salmonState.x;
+        const dy = pos.y - salmonState.y;
+        const radZ = (salmonState.rotZ * Math.PI) / 180;
+        const localX = dx * Math.cos(-radZ) - dy * Math.sin(-radZ);
+        const localY = dx * Math.sin(-radZ) + dy * Math.cos(-radZ);
+
+        const halfW = threeCanvas.width / 2;
+        const halfH = threeCanvas.height / 2;
+        const u = Math.round(localX + halfW);
+        const v = Math.round(localY + halfH);
+
+        if (u < 0 || u >= threeCanvas.width || v < 0 || v >= threeCanvas.height) {
+            return false;
+        }
+
+        // マスクで消去されている箇所はタッチ無効
+        if (salmonEraseCanvas.width > 0) {
+            try {
+                const erasePixel = salmonEraseCtx.getImageData(Math.round(pos.x), Math.round(pos.y), 1, 1).data;
+                if (erasePixel[3] > 60) {
+                    return false;
+                }
+            } catch (e) { }
+        }
+
+        const gl = threeRenderer.getContext();
+        if (!gl) return false;
+
+        const glY = threeCanvas.height - 1 - v;
+        const pixel = new Uint8Array(4);
+        gl.readPixels(u, glY, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+
+        return pixel[3] > 20;
+    }
+
+    function drawSubtitleDashedBox(ctx) {
+        if (currentMode !== 'subtitle' || !subtitleState.visible) return;
+        const bounds = getSubtitleBounds();
+        if (!bounds) return;
+
+        ctx.save();
+        const radius = Math.min(8, bounds.height / 4);
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
+        } else {
+            ctx.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+        }
+
+        // Pass 1: 白縁取り
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.lineWidth = isDrawing ? 4.2 : 3.4;
+        ctx.setLineDash([8, 6]);
+        ctx.stroke();
+
+        // Pass 2: 緑色点線
+        ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
+        ctx.lineWidth = isDrawing ? 2.4 : 1.8;
+        ctx.setLineDash([8, 6]);
+        ctx.stroke();
+        ctx.restore();
+
+        const hPos = getSubtitleHandlePos();
+        if (hPos) {
+            const isHovered = hoveredHandle === 'subtitle';
+            const isActive = activeDragAction === 'resize' && currentMode === 'subtitle';
+            drawResizeHandle(ctx, hPos.x, hPos.y, hPos.angleRad, isHovered, isActive);
+        }
+    }
+
+    function drawLogoDashedBox(ctx) {
+        if (currentMode !== 'logo' || !logoState.visible || logoDragMode !== 'move') return;
+        const bounds = getLogoBounds();
+        if (!bounds) return;
+
+        ctx.save();
+        ctx.translate(bounds.cx, bounds.cy);
+        ctx.rotate((bounds.rotZ * Math.PI) / 180);
+
+        const rx = -bounds.localW / 2;
+        const ry = -bounds.localH / 2;
+        const radius = Math.min(8, bounds.localH / 4);
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(rx, ry, bounds.localW, bounds.localH, radius);
+        } else {
+            ctx.rect(rx, ry, bounds.localW, bounds.localH);
+        }
+
+        // Pass 1: 白縁取り
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.lineWidth = isDrawing ? 4.2 : 3.4;
+        ctx.setLineDash([8, 6]);
+        ctx.stroke();
+
+        // Pass 2: 緑色点線
+        ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
+        ctx.lineWidth = isDrawing ? 2.4 : 1.8;
+        ctx.setLineDash([8, 6]);
+        ctx.stroke();
+        ctx.restore();
+
+        const hPos = getLogoHandlePos();
+        if (hPos) {
+            const isHovered = hoveredHandle === 'logo';
+            const isActive = activeDragAction === 'resize' && currentMode === 'logo';
+            drawResizeHandle(ctx, hPos.x, hPos.y, hPos.angleRad, isHovered, isActive);
+        }
+    }
+
+    function drawSalmonMoveGuide(ctx) {
+        if (currentMode !== 'salmon' || salmonDragMode !== 'move' || !bgImage || !isSalmonLoaded) return;
+
+        const hash = `${currentFishType}_${Math.round(salmonState.rotX)}_${Math.round(salmonState.rotY)}_${Math.round(salmonState.bulge * 100)}_${Math.round(threeCanvas.width)}`;
+        if (hash !== lastContourHash || !cachedFishContourPath) {
+            cachedFishContourPath = generateFishContourPath();
+            lastContourHash = hash;
+        }
+
+        if (cachedFishContourPath) {
+            ctx.save();
+            ctx.translate(salmonState.x, salmonState.y);
+            ctx.rotate((salmonState.rotZ * Math.PI) / 180);
+
+            // Pass 1: 白縁取り
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.lineWidth = isDrawing ? 4.2 : 3.4;
+            ctx.setLineDash([8, 6]);
+            ctx.stroke(cachedFishContourPath);
+
+            // Pass 2: 緑色点線
+            ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
+            ctx.lineWidth = isDrawing ? 2.4 : 1.8;
+            ctx.setLineDash([8, 6]);
+            ctx.stroke(cachedFishContourPath);
+
+            ctx.restore();
+        }
+
+        const hPos = getSalmonHandlePos();
+        if (hPos) {
+            const isHovered = hoveredHandle === 'salmon';
+            const isActive = activeDragAction === 'resize' && currentMode === 'salmon';
+            drawResizeHandle(ctx, hPos.x, hPos.y, hPos.angleRad, isHovered, isActive);
+        }
+    }
+
     function renderOverlay() {
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         if (!bgImage) return;
@@ -2263,25 +3217,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         drawRotationGuideRing(overlayCtx);
+        drawSalmonMoveGuide(overlayCtx);
+        drawLogoDashedBox(overlayCtx);
+        drawSubtitleDashedBox(overlayCtx);
         drawCropGuideOverlay(overlayCtx);
-
-        if (currentMode === 'subtitle' && subtitleState.visible) {
-            overlayCtx.save();
-            overlayCtx.strokeStyle = '#2e7d32';
-            overlayCtx.lineWidth = 1.5;
-            overlayCtx.setLineDash([5, 3]);
-
-            overlayCtx.beginPath();
-            overlayCtx.arc(subtitleState.x, subtitleState.y, 8, 0, Math.PI * 2);
-            overlayCtx.stroke();
-
-            overlayCtx.fillStyle = '#2e7d32';
-            overlayCtx.beginPath();
-            overlayCtx.arc(subtitleState.x, subtitleState.y, 3, 0, Math.PI * 2);
-            overlayCtx.fill();
-
-            overlayCtx.restore();
-        }
 
         if (bonitoParticles.length > 0) {
             bonitoParticles.forEach(p => drawBonitoFlake(overlayCtx, p));
@@ -2341,10 +3280,17 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.shadowBlur = 8;
             ctx.fill();
 
+            // Pass 1: 白縁取り
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.75)';
-            ctx.lineWidth = isDrawing ? 3.5 : 2.5;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.lineWidth = isDrawing ? 5.2 : 4.2;
+            ctx.setLineDash([8, 6]);
+            ctx.stroke();
+
+            // Pass 2: 緑色点線
+            ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
+            ctx.lineWidth = isDrawing ? 3.4 : 2.4;
             ctx.setLineDash([8, 6]);
             ctx.stroke();
 
@@ -2394,10 +3340,17 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.shadowBlur = 8;
             ctx.fill();
 
+            // Pass 1: 白縁取り
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.75)';
-            ctx.lineWidth = isDrawing ? 3.5 : 2.5;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.lineWidth = isDrawing ? 5.2 : 4.2;
+            ctx.setLineDash([8, 6]);
+            ctx.stroke();
+
+            // Pass 2: 緑色点線
+            ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
+            ctx.lineWidth = isDrawing ? 3.4 : 2.4;
             ctx.setLineDash([8, 6]);
             ctx.stroke();
 
