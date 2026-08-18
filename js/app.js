@@ -1170,10 +1170,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateActiveModeUI(mode) {
-        if (canvasWorkspace) {
-            canvasWorkspace.style.touchAction = (mode === 'eraseSalmon') ? 'none' : 'pan-y';
-        }
-
         if (dragHintOverlay) {
             dragHintOverlay.style.display = (mode === 'crop' || mode === 'logo' || mode === 'subtitle') ? 'inline-flex' : 'none';
         }
@@ -1708,6 +1704,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (currentMode === 'eraseSalmon') {
             activeDragAction = 'erase';
             hit = true;
+            if (e.cancelable) {
+                e.preventDefault();
+            }
             saveSalmonEraseUndoState();
             handleDrawStroke(pos, touch);
         }

@@ -496,8 +496,10 @@ body {
     align-items: center;
     justify-content: center;
     border: 1px solid var(--border-color);
+    -webkit-user-select: none;
     user-select: none;
-    touch-action: pan-y;
+    touch-action: none;
+    -webkit-touch-callout: none;
 }
 
 #mainCanvas {
@@ -505,6 +507,7 @@ body {
     max-height: 600px;
     display: block;
     object-fit: contain;
+    touch-action: none;
 }
 
 #overlayCanvas {
@@ -515,6 +518,7 @@ body {
     pointer-events: none;
     max-width: 100%;
     max-height: 600px;
+    touch-action: none;
 }
 
 .brush-cursor {
