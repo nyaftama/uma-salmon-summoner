@@ -1170,6 +1170,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateActiveModeUI(mode) {
+        if (canvasWorkspace) {
+            canvasWorkspace.style.touchAction = (mode === 'eraseSalmon') ? 'none' : 'pan-y';
+        }
+
         if (dragHintOverlay) {
             dragHintOverlay.style.display = (mode === 'crop' || mode === 'logo' || mode === 'subtitle') ? 'inline-flex' : 'none';
         }
