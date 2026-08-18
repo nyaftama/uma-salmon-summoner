@@ -1621,109 +1621,83 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvasWorkspace.addEventListener('touchstart', (e) => {
         if (!bgImage || e.touches.length === 0) return;
+        if (e.cancelable) {
+            e.preventDefault();
+        }
         const touch = e.touches[0];
         const pos = getCanvasPos(touch);
 
-        let hit = false;
+        isDrawing = true;
+        lastDrawPos = pos;
+        lastScreenPos = { x: touch.clientX, y: touch.clientY };
 
         if (currentMode === 'salmon') {
             if (salmonDragMode === 'move') {
                 const hPos = getSalmonHandlePos();
                 if (isNearHandle(pos, hPos)) {
                     activeDragAction = 'resize';
-                    hit = true;
+                    isDragTargetHit = true;
                     initialResizeDist = Math.max(10, Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y));
                     initialResizeScale = salmonState.scale;
                 } else if (isInsideSalmonBounds(pos)) {
                     activeDragAction = 'move';
-                    hit = true;
+                    isDragTargetHit = true;
                 } else {
                     activeDragAction = 'none';
-                    hit = false;
+                    isDragTargetHit = false;
                 }
             } else {
-                const baseScale = getBaseSalmonScale(bgImage.width) || 1;
-                const relativeScale = salmonState.scale / baseScale;
-                const radius = Math.max(70, Math.min(mainCanvas.width * 0.4, 130 * relativeScale));
-                const uiScale = getUIScale();
-                const touchRadius = radius + 32 * uiScale;
-                const distFromCenter = Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y);
-                if (distFromCenter <= touchRadius) {
-                    activeDragAction = 'rotate';
-                    hit = true;
-                } else {
-                    activeDragAction = 'none';
-                    hit = false;
-                }
+                activeDragAction = 'rotate';
+                isDragTargetHit = true;
             }
         } else if (currentMode === 'logo') {
             if (logoDragMode === 'move') {
                 const hPos = getLogoHandlePos();
                 if (isNearHandle(pos, hPos)) {
                     activeDragAction = 'resize';
-                    hit = true;
+                    isDragTargetHit = true;
                     initialResizeDist = Math.max(10, Math.hypot(pos.x - logoState.x, pos.y - logoState.y));
                     initialResizeScale = logoState.scale;
                 } else if (isInsideLogoBounds(pos)) {
                     activeDragAction = 'move';
-                    hit = true;
+                    isDragTargetHit = true;
                 } else {
                     activeDragAction = 'none';
-                    hit = false;
+                    isDragTargetHit = false;
                 }
             } else {
-                const radius = Math.max(70, Math.min(mainCanvas.width * 0.4, 130 * logoState.scale));
-                const uiScale = getUIScale();
-                const touchRadius = radius + 32 * uiScale;
-                const distFromCenter = Math.hypot(pos.x - logoState.x, pos.y - logoState.y);
-                if (distFromCenter <= touchRadius) {
-                    activeDragAction = 'rotate';
-                    hit = true;
-                } else {
-                    activeDragAction = 'none';
-                    hit = false;
-                }
+                activeDragAction = 'rotate';
+                isDragTargetHit = true;
             }
         } else if (currentMode === 'subtitle') {
             const hPos = getSubtitleHandlePos();
             if (isNearHandle(pos, hPos)) {
                 activeDragAction = 'resize';
-                hit = true;
+                isDragTargetHit = true;
                 initialResizeDist = Math.max(10, Math.hypot(pos.x - subtitleState.x, pos.y - subtitleState.y));
                 initialResizeScale = subtitleState.scale;
             } else if (isInsideSubtitleBounds(pos)) {
                 activeDragAction = 'move';
-                hit = true;
+                isDragTargetHit = true;
             } else {
                 activeDragAction = 'none';
-                hit = false;
+                isDragTargetHit = false;
             }
         } else if (currentMode === 'crop') {
             activeDragAction = 'move';
-            hit = true;
+            isDragTargetHit = true;
         } else if (currentMode === 'eraseSalmon') {
             activeDragAction = 'erase';
-            hit = true;
-            if (e.cancelable) {
-                e.preventDefault();
-            }
+            isDragTargetHit = true;
             saveSalmonEraseUndoState();
             handleDrawStroke(pos, touch);
         }
 
-        isDragTargetHit = hit;
-        isDrawing = hit;
-        lastDrawPos = pos;
-        lastScreenPos = { x: touch.clientX, y: touch.clientY };
-
-        if (hit && e.cancelable) {
-            e.preventDefault();
-        }
         renderOverlay();
     }, { passive: false });
 
     canvasWorkspace.addEventListener('touchmove', (e) => {
-        if (!isDrawing || !isDragTargetHit || !bgImage || e.touches.length === 0) return;
+        if (!isDrawing || !bgImage || e.touches.length === 0) return;
         if (e.cancelable) {
             e.preventDefault();
         }
