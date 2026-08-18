@@ -468,6 +468,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let tempCompositeCanvas = document.createElement('canvas');
     let tempCompositeCtx = tempCompositeCanvas.getContext('2d');
+    let tempSalmonCanvas = document.createElement('canvas');
+    let tempSalmonCtx = tempSalmonCanvas.getContext('2d');
+    let contourOffCanvas = document.createElement('canvas');
+    let contourOffCtx = contourOffCanvas.getContext('2d');
 
     const salmonState = {
         x: 0,
@@ -1165,74 +1169,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function updateActiveModeUI(mode) {
+        if (dragHintOverlay) {
+            dragHintOverlay.style.display = (mode === 'crop' || mode === 'logo' || mode === 'subtitle') ? 'inline-flex' : 'none';
+        }
+
+        salmonDragToggleRow.style.display = (mode === 'salmon') ? 'flex' : 'none';
+        if (cropToggleRow) cropToggleRow.style.display = (mode === 'crop') ? 'flex' : 'none';
+        maskToolToggleRow.style.display = (mode === 'eraseSalmon') ? 'flex' : 'none';
+        if (maskUndoToggleRow) maskUndoToggleRow.style.display = (mode === 'eraseSalmon') ? 'flex' : 'none';
+        if (logoEnableToggleRow) logoEnableToggleRow.style.display = (mode === 'logo') ? 'flex' : 'none';
+        if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = (mode === 'subtitle') ? 'flex' : 'none';
+
+        eraserToolsCard.style.display = (mode === 'eraseSalmon') ? 'block' : 'none';
+        logoToolsCard.style.display = (mode === 'logo') ? 'block' : 'none';
+        if (subtitleToolsCard) subtitleToolsCard.style.display = (mode === 'subtitle') ? 'block' : 'none';
+        if (fishToolsCard) fishToolsCard.style.display = (mode === 'salmon') ? 'block' : 'none';
+    }
+
     // --- モード切替 ---
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             tabBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentMode = btn.dataset.mode;
-
-            if (dragHintOverlay) {
-                dragHintOverlay.style.display = (currentMode === 'crop' || currentMode === 'logo' || currentMode === 'subtitle') ? 'inline-flex' : 'none';
-            }
-
-            if (currentMode === 'salmon') {
-                salmonDragToggleRow.style.display = 'flex';
-                if (cropToggleRow) cropToggleRow.style.display = 'none';
-                maskToolToggleRow.style.display = 'none';
-                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
-                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'none';
-                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'none';
-                eraserToolsCard.style.display = 'none';
-                logoToolsCard.style.display = 'none';
-                if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
-                if (fishToolsCard) fishToolsCard.style.display = 'block';
-            } else if (currentMode === 'logo') {
-                salmonDragToggleRow.style.display = 'none';
-                if (cropToggleRow) cropToggleRow.style.display = 'none';
-                maskToolToggleRow.style.display = 'none';
-                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
-                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'flex';
-                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'none';
-                eraserToolsCard.style.display = 'none';
-                if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
-                logoToolsCard.style.display = 'block';
-                if (fishToolsCard) fishToolsCard.style.display = 'none';
-            } else if (currentMode === 'subtitle') {
-                salmonDragToggleRow.style.display = 'none';
-                if (cropToggleRow) cropToggleRow.style.display = 'none';
-                maskToolToggleRow.style.display = 'none';
-                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
-                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'none';
-                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'flex';
-                eraserToolsCard.style.display = 'none';
-                logoToolsCard.style.display = 'none';
-                if (fishToolsCard) fishToolsCard.style.display = 'none';
-                if (subtitleToolsCard) subtitleToolsCard.style.display = 'block';
-            } else if (currentMode === 'crop') {
-                salmonDragToggleRow.style.display = 'none';
-                if (cropToggleRow) cropToggleRow.style.display = 'flex';
-                maskToolToggleRow.style.display = 'none';
-                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'none';
-                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'none';
-                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'none';
-                eraserToolsCard.style.display = 'none';
-                logoToolsCard.style.display = 'none';
-                if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
-                if (fishToolsCard) fishToolsCard.style.display = 'none';
-            } else if (currentMode === 'eraseSalmon') {
-                salmonDragToggleRow.style.display = 'none';
-                if (cropToggleRow) cropToggleRow.style.display = 'none';
-                maskToolToggleRow.style.display = 'flex';
-                if (maskUndoToggleRow) maskUndoToggleRow.style.display = 'flex';
-                if (logoEnableToggleRow) logoEnableToggleRow.style.display = 'none';
-                if (subtitleEnableToggleRow) subtitleEnableToggleRow.style.display = 'none';
-                eraserToolsCard.style.display = 'block';
-                logoToolsCard.style.display = 'none';
-                if (subtitleToolsCard) subtitleToolsCard.style.display = 'none';
-                if (fishToolsCard) fishToolsCard.style.display = 'none';
-            }
-
+            updateActiveModeUI(currentMode);
             requestRender();
         });
     });
@@ -2344,20 +2305,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const salmonWidth = threeCanvas.width;
             const salmonHeight = threeCanvas.height;
 
-            const tempSalmonCanvas = document.createElement('canvas');
-            tempSalmonCanvas.width = mainCanvas.width;
-            tempSalmonCanvas.height = mainCanvas.height;
-            const tCtx = tempSalmonCanvas.getContext('2d');
+            if (tempSalmonCanvas.width !== mainCanvas.width || tempSalmonCanvas.height !== mainCanvas.height) {
+                tempSalmonCanvas.width = mainCanvas.width;
+                tempSalmonCanvas.height = mainCanvas.height;
+            }
+            tempSalmonCtx.globalCompositeOperation = 'source-over';
+            tempSalmonCtx.clearRect(0, 0, tempSalmonCanvas.width, tempSalmonCanvas.height);
 
-            tCtx.save();
-            tCtx.translate(salmonState.x, salmonState.y);
-            tCtx.rotate((salmonState.rotZ * Math.PI) / 180);
-            tCtx.drawImage(threeCanvas, -salmonWidth / 2, -salmonHeight / 2);
-            tCtx.restore();
+            tempSalmonCtx.save();
+            tempSalmonCtx.translate(salmonState.x, salmonState.y);
+            tempSalmonCtx.rotate((salmonState.rotZ * Math.PI) / 180);
+            tempSalmonCtx.drawImage(threeCanvas, -salmonWidth / 2, -salmonHeight / 2);
+            tempSalmonCtx.restore();
 
             if (salmonEraseCanvas.width > 0) {
-                tCtx.globalCompositeOperation = 'destination-out';
-                tCtx.drawImage(salmonEraseCanvas, 0, 0);
+                tempSalmonCtx.globalCompositeOperation = 'destination-out';
+                tempSalmonCtx.drawImage(salmonEraseCanvas, 0, 0);
+                tempSalmonCtx.globalCompositeOperation = 'source-over';
             }
 
             // マスク・ロゴ・字幕編集モード時はおさかなを55%透過表示（書き出し時・移動モード時は不透明）
@@ -2377,24 +2341,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
             const baseLogoScale = (refDim / 800) * logoState.scale;
             if (!forExport && (currentMode === 'subtitle' || currentMode === 'salmon')) {
-                if (tempCompositeCanvas.width !== mainCanvas.width || tempCompositeCanvas.height !== mainCanvas.height) {
-                    tempCompositeCanvas.width = mainCanvas.width;
-                    tempCompositeCanvas.height = mainCanvas.height;
+                const bounds = getLogoBounds();
+                if (bounds) {
+                    const bw = Math.max(64, Math.ceil(bounds.localW + 40));
+                    const bh = Math.max(64, Math.ceil(bounds.localH + 40));
+                    if (tempCompositeCanvas.width !== bw || tempCompositeCanvas.height !== bh) {
+                        tempCompositeCanvas.width = bw;
+                        tempCompositeCanvas.height = bh;
+                    }
+                    tempCompositeCtx.clearRect(0, 0, bw, bh);
+                    drawPopLogo(
+                        tempCompositeCtx,
+                        bw / 2,
+                        bh / 2,
+                        baseLogoScale,
+                        0,
+                        logoState.line1,
+                        logoState.line2
+                    );
+                    mainCtx.save();
+                    mainCtx.globalAlpha = 0.45;
+                    mainCtx.translate(logoState.x, logoState.y);
+                    mainCtx.rotate((logoState.rotZ * Math.PI) / 180);
+                    mainCtx.drawImage(tempCompositeCanvas, -bw / 2, -bh / 2);
+                    mainCtx.restore();
                 }
-                tempCompositeCtx.clearRect(0, 0, tempCompositeCanvas.width, tempCompositeCanvas.height);
-                drawPopLogo(
-                    tempCompositeCtx,
-                    logoState.x,
-                    logoState.y,
-                    baseLogoScale,
-                    logoState.rotZ,
-                    logoState.line1,
-                    logoState.line2
-                );
-                mainCtx.save();
-                mainCtx.globalAlpha = 0.45;
-                mainCtx.drawImage(tempCompositeCanvas, 0, 0);
-                mainCtx.restore();
             } else {
                 drawPopLogo(
                     mainCtx,
@@ -2414,23 +2385,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
             const baseSubScale = (refDim / 800) * subtitleState.scale;
             if (!forExport && (currentMode === 'logo' || currentMode === 'salmon')) {
-                if (tempCompositeCanvas.width !== mainCanvas.width || tempCompositeCanvas.height !== mainCanvas.height) {
-                    tempCompositeCanvas.width = mainCanvas.width;
-                    tempCompositeCanvas.height = mainCanvas.height;
+                const bounds = getSubtitleBounds();
+                if (bounds) {
+                    const bw = Math.max(64, Math.ceil(bounds.width + 40));
+                    const bh = Math.max(64, Math.ceil(bounds.height + 40));
+                    if (tempCompositeCanvas.width !== bw || tempCompositeCanvas.height !== bh) {
+                        tempCompositeCanvas.width = bw;
+                        tempCompositeCanvas.height = bh;
+                    }
+                    tempCompositeCtx.clearRect(0, 0, bw, bh);
+                    drawSubtitles(
+                        tempCompositeCtx,
+                        bw / 2,
+                        bh / 2,
+                        baseSubScale,
+                        subtitleState.line1,
+                        subtitleState.line2
+                    );
+                    mainCtx.save();
+                    mainCtx.globalAlpha = 0.45;
+                    mainCtx.drawImage(tempCompositeCanvas, subtitleState.x - bw / 2, subtitleState.y - bh / 2);
+                    mainCtx.restore();
                 }
-                tempCompositeCtx.clearRect(0, 0, tempCompositeCanvas.width, tempCompositeCanvas.height);
-                drawSubtitles(
-                    tempCompositeCtx,
-                    subtitleState.x,
-                    subtitleState.y,
-                    baseSubScale,
-                    subtitleState.line1,
-                    subtitleState.line2
-                );
-                mainCtx.save();
-                mainCtx.globalAlpha = 0.45;
-                mainCtx.drawImage(tempCompositeCanvas, 0, 0);
-                mainCtx.restore();
             } else {
                 drawSubtitles(
                     mainCtx,
@@ -2833,21 +2809,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function generateFishContourPath() {
         if (!threeCanvas || !threeCanvas.width || !threeCanvas.height) return null;
 
-        const targetDim = 160;
+        const targetDim = 128;
         const scale = targetDim / Math.max(threeCanvas.width, threeCanvas.height);
         const tw = Math.max(32, Math.round(threeCanvas.width * scale));
         const th = Math.max(32, Math.round(threeCanvas.height * scale));
 
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = tw;
-        offCanvas.height = th;
-        const offCtx = offCanvas.getContext('2d');
-
-        offCtx.drawImage(threeCanvas, 0, 0, tw, th);
+        if (contourOffCanvas.width !== tw || contourOffCanvas.height !== th) {
+            contourOffCanvas.width = tw;
+            contourOffCanvas.height = th;
+        }
+        contourOffCtx.clearRect(0, 0, tw, th);
+        contourOffCtx.drawImage(threeCanvas, 0, 0, tw, th);
 
         let imgData;
         try {
-            imgData = offCtx.getImageData(0, 0, tw, th);
+            imgData = contourOffCtx.getImageData(0, 0, tw, th);
         } catch (e) {
             return null;
         }
