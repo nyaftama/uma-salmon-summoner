@@ -137,6 +137,36 @@ body {
     color: #fff;
 }
 
+.tool-link-subtle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.tool-link-subtle svg {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.tool-link-subtle:hover {
+    color: var(--text-color);
+    text-decoration: underline;
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.tool-link-subtle:hover svg {
+    opacity: 1;
+}
+
 /* カードコンテナ */
 .card {
     background: var(--card-bg);
@@ -467,7 +497,7 @@ body {
     justify-content: center;
     border: 1px solid var(--border-color);
     user-select: none;
-    touch-action: none;
+    touch-action: pan-y;
 }
 
 #mainCanvas {

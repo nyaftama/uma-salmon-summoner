@@ -463,10 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastDrawPos = null;
     let lastScreenPos = null;
 
-    const eraseUndoStack = [];
-
     let bgOffsetX = 0;
     let bgOffsetY = 0;
+
+    let tempCompositeCanvas = document.createElement('canvas');
+    let tempCompositeCtx = tempCompositeCanvas.getContext('2d');
 
     const salmonState = {
         x: 0,
@@ -1323,6 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.target.value = cleanVal;
             }
             logoState.line1 = e.target.value;
+            clampLogoPosition();
             validateAllInputs();
         });
     }
@@ -1334,6 +1336,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.target.value = cleanVal;
             }
             logoState.line2 = e.target.value;
+            clampLogoPosition();
             validateAllInputs();
         });
     }
@@ -1343,6 +1346,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const pct = parseInt(e.target.value, 10) || 100;
             if (logoScaleVal) logoScaleVal.textContent = `${pct}%`;
             logoState.scale = pct / 100;
+            clampLogoPosition();
             requestRender();
         });
     }
@@ -1368,6 +1372,7 @@ document.addEventListener('DOMContentLoaded', () => {
             logoScaleInput.value = 100;
             if (logoScaleVal) logoScaleVal.textContent = '100%';
         }
+        clampLogoPosition();
         validateAllInputs();
     }
 
@@ -1383,6 +1388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     subtitleState.y = mainCanvas.height * 0.88;
                 }
             }
+            clampSubtitlePosition();
             validateAllInputs();
         });
     }
@@ -1390,6 +1396,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (subtitleLine1Input) {
         subtitleLine1Input.addEventListener('input', (e) => {
             subtitleState.line1 = e.target.value;
+            clampSubtitlePosition();
             validateAllInputs();
         });
     }
@@ -1397,6 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (subtitleLine2Input) {
         subtitleLine2Input.addEventListener('input', (e) => {
             subtitleState.line2 = e.target.value;
+            clampSubtitlePosition();
             validateAllInputs();
         });
     }
@@ -1406,6 +1414,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const pct = parseInt(e.target.value, 10) || 100;
             if (subtitleScaleVal) subtitleScaleVal.textContent = `${pct}%`;
             subtitleState.scale = pct / 100;
+            clampSubtitlePosition();
             requestRender();
         });
     }
@@ -1429,6 +1438,7 @@ document.addEventListener('DOMContentLoaded', () => {
             subtitleScaleInput.value = 100;
             if (subtitleScaleVal) subtitleScaleVal.textContent = '100%';
         }
+        clampSubtitlePosition();
         validateAllInputs();
     }
 
@@ -1650,250 +1660,130 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvasWorkspace.addEventListener('touchstart', (e) => {
         if (!bgImage || e.touches.length === 0) return;
-        isDrawing = true;
         const touch = e.touches[0];
         const pos = getCanvasPos(touch);
-        lastDrawPos = pos;
-        lastScreenPos = { x: touch.clientX, y: touch.clientY };
+
+        let hit = false;
 
         if (currentMode === 'salmon') {
             if (salmonDragMode === 'move') {
                 const hPos = getSalmonHandlePos();
                 if (isNearHandle(pos, hPos)) {
                     activeDragAction = 'resize';
-                    isDragTargetHit = true;
+                    hit = true;
                     initialResizeDist = Math.max(10, Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y));
                     initialResizeScale = salmonState.scale;
                 } else if (isInsideSalmonBounds(pos)) {
                     activeDragAction = 'move';
-                    isDragTargetHit = true;
+                    hit = true;
                 } else {
                     activeDragAction = 'none';
-                    isDragTargetHit = false;
+                    hit = false;
                 }
             } else {
-                activeDragAction = 'rotate';
-                isDragTargetHit = true;
+                const baseScale = getBaseSalmonScale(bgImage.width) || 1;
+                const relativeScale = salmonState.scale / baseScale;
+                const radius = Math.max(70, Math.min(mainCanvas.width * 0.4, 130 * relativeScale));
+                const uiScale = getUIScale();
+                const touchRadius = radius + 32 * uiScale;
+                const distFromCenter = Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y);
+                if (distFromCenter <= touchRadius) {
+                    activeDragAction = 'rotate';
+                    hit = true;
+                } else {
+                    activeDragAction = 'none';
+                    hit = false;
+                }
             }
         } else if (currentMode === 'logo') {
             if (logoDragMode === 'move') {
                 const hPos = getLogoHandlePos();
                 if (isNearHandle(pos, hPos)) {
                     activeDragAction = 'resize';
-                    isDragTargetHit = true;
+                    hit = true;
                     initialResizeDist = Math.max(10, Math.hypot(pos.x - logoState.x, pos.y - logoState.y));
                     initialResizeScale = logoState.scale;
                 } else if (isInsideLogoBounds(pos)) {
                     activeDragAction = 'move';
-                    isDragTargetHit = true;
+                    hit = true;
                 } else {
                     activeDragAction = 'none';
-                    isDragTargetHit = false;
+                    hit = false;
                 }
             } else {
-                activeDragAction = 'rotate';
-                isDragTargetHit = true;
+                const radius = Math.max(70, Math.min(mainCanvas.width * 0.4, 130 * logoState.scale));
+                const uiScale = getUIScale();
+                const touchRadius = radius + 32 * uiScale;
+                const distFromCenter = Math.hypot(pos.x - logoState.x, pos.y - logoState.y);
+                if (distFromCenter <= touchRadius) {
+                    activeDragAction = 'rotate';
+                    hit = true;
+                } else {
+                    activeDragAction = 'none';
+                    hit = false;
+                }
             }
         } else if (currentMode === 'subtitle') {
             const hPos = getSubtitleHandlePos();
             if (isNearHandle(pos, hPos)) {
                 activeDragAction = 'resize';
-                isDragTargetHit = true;
+                hit = true;
                 initialResizeDist = Math.max(10, Math.hypot(pos.x - subtitleState.x, pos.y - subtitleState.y));
                 initialResizeScale = subtitleState.scale;
             } else if (isInsideSubtitleBounds(pos)) {
                 activeDragAction = 'move';
-                isDragTargetHit = true;
+                hit = true;
             } else {
                 activeDragAction = 'none';
-                isDragTargetHit = false;
+                hit = false;
             }
         } else if (currentMode === 'crop') {
             activeDragAction = 'move';
-            isDragTargetHit = true;
+            hit = true;
         } else if (currentMode === 'eraseSalmon') {
             activeDragAction = 'erase';
-            isDragTargetHit = true;
+            hit = true;
             saveSalmonEraseUndoState();
             handleDrawStroke(pos, touch);
+        }
+
+        isDragTargetHit = hit;
+        isDrawing = hit;
+        lastDrawPos = pos;
+        lastScreenPos = { x: touch.clientX, y: touch.clientY };
+
+        if (hit && e.cancelable) {
+            e.preventDefault();
         }
         renderOverlay();
     }, { passive: false });
 
     canvasWorkspace.addEventListener('touchmove', (e) => {
-        if (!isDrawing || !bgImage || e.touches.length === 0) return;
-        e.preventDefault();
+        if (!isDrawing || !isDragTargetHit || !bgImage || e.touches.length === 0) return;
+        if (e.cancelable) {
+            e.preventDefault();
+        }
         const touch = e.touches[0];
         const pos = getCanvasPos(touch);
-
-        if (currentMode === 'salmon' && lastDrawPos && lastScreenPos) {
-            if (salmonDragMode === 'move' && !isDragTargetHit) {
-                lastDrawPos = pos;
-                lastScreenPos = { x: touch.clientX, y: touch.clientY };
-                return;
-            }
-
-            const dx = pos.x - lastDrawPos.x;
-            const dy = pos.y - lastDrawPos.y;
-
-            const screenDx = touch.clientX - lastScreenPos.x;
-            const screenDy = touch.clientY - lastScreenPos.y;
-
-            if (salmonDragMode === 'move') {
-                if (activeDragAction === 'resize') {
-                    const currentDist = Math.hypot(pos.x - salmonState.x, pos.y - salmonState.y);
-                    if (initialResizeDist > 5) {
-                        const ratio = currentDist / initialResizeDist;
-                        const baseScale = getBaseSalmonScale(bgImage.width) || 1;
-                        let targetPct = Math.round(((initialResizeScale * ratio) / baseScale) * 100);
-                        targetPct = Math.max(20, Math.min(300, targetPct));
-                        salmonState.scale = (targetPct / 100) * baseScale;
-                        if (salmonScaleInput) salmonScaleInput.value = targetPct;
-                        if (salmonScaleVal) salmonScaleVal.textContent = `${targetPct}%`;
-                    }
-                } else {
-                    salmonState.x += dx;
-                    salmonState.y += dy;
-                }
-            } else if (salmonDragMode === 'rotate') {
-                const radZ = (salmonState.rotZ * Math.PI) / 180;
-                const cosZ = Math.cos(radZ);
-                const sinZ = Math.sin(radZ);
-                const localDx = screenDx * cosZ + screenDy * sinZ;
-                const localDy = -screenDx * sinZ + screenDy * cosZ;
-                salmonState.rotY += localDx * 0.6;
-                salmonState.rotX = Math.max(-85, Math.min(85, salmonState.rotX + localDy * 0.4));
-            } else if (salmonDragMode === 'rotate2d') {
-                const cx = salmonState.x;
-                const cy = salmonState.y;
-                const distPrev = Math.hypot(lastDrawPos.x - cx, lastDrawPos.y - cy);
-                const distCurr = Math.hypot(pos.x - cx, pos.y - cy);
-                if (distPrev > 5 && distCurr > 5) {
-                    const prevAngleRad = Math.atan2(lastDrawPos.y - cy, lastDrawPos.x - cx);
-                    const currAngleRad = Math.atan2(pos.y - cy, pos.x - cx);
-                    let deltaDeg = (currAngleRad - prevAngleRad) * (180 / Math.PI);
-                    if (deltaDeg > 180) deltaDeg -= 360;
-                    if (deltaDeg < -180) deltaDeg += 360;
-                    if (salmonState.handleRotZ === undefined) salmonState.handleRotZ = salmonState.rotZ;
-                    salmonState.handleRotZ += deltaDeg;
-                    salmonState.rotZ += deltaDeg;
-                } else {
-                    if (salmonState.handleRotZ === undefined) salmonState.handleRotZ = salmonState.rotZ;
-                    salmonState.handleRotZ += screenDx * 0.6;
-                    salmonState.rotZ += screenDx * 0.6;
-                }
-            }
-
-            lastDrawPos = pos;
-            lastScreenPos = { x: touch.clientX, y: touch.clientY };
-            renderAll();
-        } else if (currentMode === 'logo' && lastDrawPos && lastScreenPos) {
-            if (logoDragMode === 'move' && !isDragTargetHit) {
-                lastDrawPos = pos;
-                lastScreenPos = { x: touch.clientX, y: touch.clientY };
-                return;
-            }
-
-            const dx = pos.x - lastDrawPos.x;
-            const dy = pos.y - lastDrawPos.y;
-            const screenDx = touch.clientX - lastScreenPos.x;
-
-            if (logoDragMode === 'move') {
-                if (activeDragAction === 'resize') {
-                    const currentDist = Math.hypot(pos.x - logoState.x, pos.y - logoState.y);
-                    if (initialResizeDist > 5) {
-                        const ratio = currentDist / initialResizeDist;
-                        let targetScale = initialResizeScale * ratio;
-                        targetScale = Math.max(0.3, Math.min(2.5, targetScale));
-                        logoState.scale = targetScale;
-                        const pct = Math.round(targetScale * 100);
-                        if (logoScaleInput) logoScaleInput.value = pct;
-                        if (logoScaleVal) logoScaleVal.textContent = `${pct}%`;
-                    }
-                } else {
-                    logoState.x += dx;
-                    logoState.y += dy;
-                }
-            } else if (logoDragMode === 'rotate') {
-                const cx = logoState.x;
-                const cy = logoState.y;
-                const distPrev = Math.hypot(lastDrawPos.x - cx, lastDrawPos.y - cy);
-                const distCurr = Math.hypot(pos.x - cx, pos.y - cy);
-                if (distPrev > 5 && distCurr > 5) {
-                    const prevAngleRad = Math.atan2(lastDrawPos.y - cy, lastDrawPos.x - cx);
-                    const currAngleRad = Math.atan2(pos.y - cy, pos.x - cx);
-                    let deltaDeg = (currAngleRad - prevAngleRad) * (180 / Math.PI);
-                    if (deltaDeg > 180) deltaDeg -= 360;
-                    if (deltaDeg < -180) deltaDeg += 360;
-                    if (logoState.handleRotZ === undefined) logoState.handleRotZ = logoState.rotZ;
-                    logoState.handleRotZ += deltaDeg;
-                    logoState.rotZ += deltaDeg;
-                } else {
-                    if (logoState.handleRotZ === undefined) logoState.handleRotZ = logoState.rotZ;
-                    logoState.handleRotZ += screenDx * 0.6;
-                    logoState.rotZ += screenDx * 0.6;
-                }
-            }
-
-            lastDrawPos = pos;
-            lastScreenPos = { x: touch.clientX, y: touch.clientY };
-            renderAll();
-        } else if (currentMode === 'subtitle' && lastDrawPos) {
-            if (!isDragTargetHit) {
-                lastDrawPos = pos;
-                return;
-            }
-
-            if (activeDragAction === 'resize') {
-                const currentDist = Math.hypot(pos.x - subtitleState.x, pos.y - subtitleState.y);
-                if (initialResizeDist > 5) {
-                    const ratio = currentDist / initialResizeDist;
-                    let targetScale = initialResizeScale * ratio;
-                    targetScale = Math.max(0.4, Math.min(2.5, targetScale));
-                    subtitleState.scale = targetScale;
-                    const pct = Math.round(targetScale * 100);
-                    if (subtitleScaleInput) subtitleScaleInput.value = pct;
-                    if (subtitleScaleVal) subtitleScaleVal.textContent = `${pct}%`;
-                }
-            } else {
-                const dx = pos.x - lastDrawPos.x;
-                const dy = pos.y - lastDrawPos.y;
-                subtitleState.x += dx;
-                subtitleState.y += dy;
-            }
-            lastDrawPos = pos;
-            renderAll();
-        } else if (currentMode === 'crop' && lastDrawPos) {
-            const dx = pos.x - lastDrawPos.x;
-            const dy = pos.y - lastDrawPos.y;
-            bgOffsetX += dx;
-            bgOffsetY += dy;
-
-            if (bgImage) {
-                const minX = mainCanvas.width - bgImage.width - (mainCanvas.width - bgImage.width) / 2;
-                const maxX = -(mainCanvas.width - bgImage.width) / 2;
-                if (bgImage.width >= mainCanvas.width) {
-                    bgOffsetX = Math.max(minX, Math.min(maxX, bgOffsetX));
-                }
-                const minY = mainCanvas.height - bgImage.height - (mainCanvas.height - bgImage.height) / 2;
-                const maxY = -(mainCanvas.height - bgImage.height) / 2;
-                if (bgImage.height >= mainCanvas.height) {
-                    bgOffsetY = Math.max(minY, Math.min(maxY, bgOffsetY));
-                }
-            }
-
-            lastDrawPos = pos;
-            renderAll();
-        } else {
-            handleDrawStroke(pos, touch);
-        }
+        handleDrawStroke(pos, touch);
     }, { passive: false });
 
     canvasWorkspace.addEventListener('touchend', () => {
         isDrawing = false;
         isDragTargetHit = false;
+        activeDragAction = 'none';
         lastDrawPos = null;
         lastScreenPos = null;
+        if (bgImage) renderOverlay();
+    });
+
+    canvasWorkspace.addEventListener('touchcancel', () => {
+        isDrawing = false;
+        isDragTargetHit = false;
+        activeDragAction = 'none';
+        lastDrawPos = null;
+        lastScreenPos = null;
+        if (bgImage) renderOverlay();
     });
 
     function getCanvasPos(e) {
@@ -2056,6 +1946,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             let targetScale = initialResizeScale * ratio;
                             targetScale = Math.max(0.3, Math.min(2.5, targetScale));
                             logoState.scale = targetScale;
+                            clampLogoPosition();
                             const pct = Math.round(targetScale * 100);
                             if (logoScaleInput) logoScaleInput.value = pct;
                             if (logoScaleVal) logoScaleVal.textContent = `${pct}%`;
@@ -2063,6 +1954,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         logoState.x += dx;
                         logoState.y += dy;
+                        clampLogoPosition();
                     }
                 } else if (logoDragMode === 'rotate') {
                     const cx = logoState.x;
@@ -2101,6 +1993,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         let targetScale = initialResizeScale * ratio;
                         targetScale = Math.max(0.4, Math.min(2.5, targetScale));
                         subtitleState.scale = targetScale;
+                        clampSubtitlePosition();
                         const pct = Math.round(targetScale * 100);
                         if (subtitleScaleInput) subtitleScaleInput.value = pct;
                         if (subtitleScaleVal) subtitleScaleVal.textContent = `${pct}%`;
@@ -2110,6 +2003,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const dy = pos.y - lastDrawPos.y;
                     subtitleState.x += dx;
                     subtitleState.y += dy;
+                    clampSubtitlePosition();
                 }
                 renderAll();
             }
@@ -2477,16 +2371,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ロゴ描画（マスクモード時は非表示、字幕・おさかなモード時は55%透過、書き出し時は常に不透明描画）
+        // ロゴ描画（マスクモード時は非表示、字幕・おさかなモード時は半透明、書き出し時は常に不透明描画）
         const shouldDrawLogo = logoState.visible && (forExport || currentMode !== 'eraseSalmon') && (logoState.line1 || logoState.line2);
         if (shouldDrawLogo) {
             const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
             const baseLogoScale = (refDim / 800) * logoState.scale;
             if (!forExport && (currentMode === 'subtitle' || currentMode === 'salmon')) {
-                mainCtx.save();
-                mainCtx.globalAlpha = 0.55;
+                if (tempCompositeCanvas.width !== mainCanvas.width || tempCompositeCanvas.height !== mainCanvas.height) {
+                    tempCompositeCanvas.width = mainCanvas.width;
+                    tempCompositeCanvas.height = mainCanvas.height;
+                }
+                tempCompositeCtx.clearRect(0, 0, tempCompositeCanvas.width, tempCompositeCanvas.height);
                 drawPopLogo(
-                    mainCtx,
+                    tempCompositeCtx,
                     logoState.x,
                     logoState.y,
                     baseLogoScale,
@@ -2494,6 +2391,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     logoState.line1,
                     logoState.line2
                 );
+                mainCtx.save();
+                mainCtx.globalAlpha = 0.45;
+                mainCtx.drawImage(tempCompositeCanvas, 0, 0);
                 mainCtx.restore();
             } else {
                 drawPopLogo(
@@ -2508,22 +2408,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 字幕描画（マスクモード時は非表示、ロゴ・おさかなモード時は55%透過、書き出し時は常に不透明描画）
+        // 字幕描画（マスクモード時は非表示、ロゴ・おさかなモード時は半透明、書き出し時は常に不透明描画）
         const shouldDrawSubtitle = subtitleState.visible && (forExport || currentMode !== 'eraseSalmon') && (subtitleState.line1 || subtitleState.line2);
         if (shouldDrawSubtitle) {
             const refDim = bgImage ? Math.max(bgImage.width, bgImage.height) : 800;
             const baseSubScale = (refDim / 800) * subtitleState.scale;
             if (!forExport && (currentMode === 'logo' || currentMode === 'salmon')) {
-                mainCtx.save();
-                mainCtx.globalAlpha = 0.55;
+                if (tempCompositeCanvas.width !== mainCanvas.width || tempCompositeCanvas.height !== mainCanvas.height) {
+                    tempCompositeCanvas.width = mainCanvas.width;
+                    tempCompositeCanvas.height = mainCanvas.height;
+                }
+                tempCompositeCtx.clearRect(0, 0, tempCompositeCanvas.width, tempCompositeCanvas.height);
                 drawSubtitles(
-                    mainCtx,
+                    tempCompositeCtx,
                     subtitleState.x,
                     subtitleState.y,
                     baseSubScale,
                     subtitleState.line1,
                     subtitleState.line2
                 );
+                mainCtx.save();
+                mainCtx.globalAlpha = 0.45;
+                mainCtx.drawImage(tempCompositeCanvas, 0, 0);
                 mainCtx.restore();
             } else {
                 drawSubtitles(
@@ -2566,9 +2472,59 @@ document.addEventListener('DOMContentLoaded', () => {
         threeRenderer.render(threeScene, threeCamera);
     }
 
+    function getUIScale() {
+        if (!overlayCanvas || !overlayCanvas.width) return 1.0;
+        const rect = overlayCanvas.getBoundingClientRect();
+        if (!rect.width) return 1.0;
+        return overlayCanvas.width / rect.width;
+    }
+
+    function clampLogoPosition() {
+        const bounds = getLogoBounds();
+        if (!bounds || !bgImage) return;
+        const rad = (bounds.rotZ * Math.PI) / 180;
+        const cos = Math.abs(Math.cos(rad));
+        const sin = Math.abs(Math.sin(rad));
+        const halfW = (bounds.localW / 2) * cos + (bounds.localH / 2) * sin;
+        const halfH = (bounds.localW / 2) * sin + (bounds.localH / 2) * cos;
+        if (halfW * 2 <= mainCanvas.width) {
+            logoState.x = Math.max(halfW, Math.min(mainCanvas.width - halfW, logoState.x));
+        } else {
+            logoState.x = mainCanvas.width / 2;
+        }
+        if (halfH * 2 <= mainCanvas.height) {
+            logoState.y = Math.max(halfH, Math.min(mainCanvas.height - halfH, logoState.y));
+        } else {
+            logoState.y = mainCanvas.height / 2;
+        }
+    }
+
+    function clampSubtitlePosition() {
+        if (!bgImage) return;
+        const bounds = getSubtitleBounds();
+        if (bounds) {
+            const halfW = bounds.width / 2;
+            const halfH = bounds.height / 2;
+            if (halfW * 2 <= mainCanvas.width) {
+                subtitleState.x = Math.max(halfW, Math.min(mainCanvas.width - halfW, subtitleState.x));
+            } else {
+                subtitleState.x = mainCanvas.width / 2;
+            }
+            if (halfH * 2 <= mainCanvas.height) {
+                subtitleState.y = Math.max(halfH, Math.min(mainCanvas.height - halfH, subtitleState.y));
+            } else {
+                subtitleState.y = mainCanvas.height / 2;
+            }
+        } else {
+            subtitleState.x = Math.max(20, Math.min(mainCanvas.width - 20, subtitleState.x));
+            subtitleState.y = Math.max(20, Math.min(mainCanvas.height - 20, subtitleState.y));
+        }
+    }
+
     function isNearHandle(pos, handlePos, maxDist = 24) {
         if (!pos || !handlePos) return false;
-        return Math.hypot(pos.x - handlePos.x, pos.y - handlePos.y) <= maxDist;
+        const uiScale = getUIScale();
+        return Math.hypot(pos.x - handlePos.x, pos.y - handlePos.y) <= maxDist * uiScale;
     }
 
     function getSubtitleHandlePos() {
@@ -2622,13 +2578,14 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.save();
         ctx.translate(hx, hy);
 
-        const r = isActive ? 15 : (isHovered ? 14 : 12);
+        const uiScale = getUIScale();
+        const r = (isActive ? 15 : (isHovered ? 14 : 12)) * uiScale;
 
         // ドロップシャドウ
         ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
-        ctx.shadowBlur = 5;
+        ctx.shadowBlur = 5 * uiScale;
         ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 2;
+        ctx.shadowOffsetY = 2 * uiScale;
 
         // 白背景の円
         ctx.beginPath();
@@ -2638,7 +2595,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 輪郭線
         ctx.shadowColor = 'transparent';
-        ctx.lineWidth = 2.0;
+        ctx.lineWidth = 2.0 * uiScale;
         ctx.strokeStyle = isActive ? '#1b5e20' : (isHovered ? '#388e3c' : '#2e7d32');
         ctx.stroke();
 
@@ -2646,12 +2603,12 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.rotate(angleRad + Math.PI / 4);
 
         ctx.strokeStyle = isActive ? '#1b5e20' : (isHovered ? '#388e3c' : '#2e7d32');
-        ctx.lineWidth = 1.8;
+        ctx.lineWidth = 1.8 * uiScale;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
         const len = r * 0.52;
-        const arrowSz = 3.2;
+        const arrowSz = 3.2 * uiScale;
 
         // 軸線
         ctx.beginPath();
@@ -3089,8 +3046,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const bounds = getSubtitleBounds();
         if (!bounds) return;
 
+        const uiScale = getUIScale();
+
         ctx.save();
-        const radius = Math.min(8, bounds.height / 4);
+        const radius = Math.min(8 * uiScale, bounds.height / 4);
         ctx.beginPath();
         if (ctx.roundRect) {
             ctx.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, radius);
@@ -3100,14 +3059,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Pass 1: 白縁取り
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-        ctx.lineWidth = isDrawing ? 4.2 : 3.4;
-        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = (isDrawing ? 4.2 : 3.4) * uiScale;
+        ctx.setLineDash([8 * uiScale, 6 * uiScale]);
         ctx.stroke();
 
         // Pass 2: 緑色点線
         ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
-        ctx.lineWidth = isDrawing ? 2.4 : 1.8;
-        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = (isDrawing ? 2.4 : 1.8) * uiScale;
+        ctx.setLineDash([8 * uiScale, 6 * uiScale]);
         ctx.stroke();
         ctx.restore();
 
@@ -3124,13 +3083,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const bounds = getLogoBounds();
         if (!bounds) return;
 
+        const uiScale = getUIScale();
+
         ctx.save();
         ctx.translate(bounds.cx, bounds.cy);
         ctx.rotate((bounds.rotZ * Math.PI) / 180);
 
         const rx = -bounds.localW / 2;
         const ry = -bounds.localH / 2;
-        const radius = Math.min(8, bounds.localH / 4);
+        const radius = Math.min(8 * uiScale, bounds.localH / 4);
 
         ctx.beginPath();
         if (ctx.roundRect) {
@@ -3141,14 +3102,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Pass 1: 白縁取り
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-        ctx.lineWidth = isDrawing ? 4.2 : 3.4;
-        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = (isDrawing ? 4.2 : 3.4) * uiScale;
+        ctx.setLineDash([8 * uiScale, 6 * uiScale]);
         ctx.stroke();
 
         // Pass 2: 緑色点線
         ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
-        ctx.lineWidth = isDrawing ? 2.4 : 1.8;
-        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = (isDrawing ? 2.4 : 1.8) * uiScale;
+        ctx.setLineDash([8 * uiScale, 6 * uiScale]);
         ctx.stroke();
         ctx.restore();
 
@@ -3170,20 +3131,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (cachedFishContourPath) {
+            const uiScale = getUIScale();
             ctx.save();
             ctx.translate(salmonState.x, salmonState.y);
             ctx.rotate((salmonState.rotZ * Math.PI) / 180);
 
             // Pass 1: 白縁取り
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-            ctx.lineWidth = isDrawing ? 4.2 : 3.4;
-            ctx.setLineDash([8, 6]);
+            ctx.lineWidth = (isDrawing ? 4.2 : 3.4) * uiScale;
+            ctx.setLineDash([8 * uiScale, 6 * uiScale]);
             ctx.stroke(cachedFishContourPath);
 
             // Pass 2: 緑色点線
             ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
-            ctx.lineWidth = isDrawing ? 2.4 : 1.8;
-            ctx.setLineDash([8, 6]);
+            ctx.lineWidth = (isDrawing ? 2.4 : 1.8) * uiScale;
+            ctx.setLineDash([8 * uiScale, 6 * uiScale]);
             ctx.stroke(cachedFishContourPath);
 
             ctx.restore();
@@ -3267,6 +3229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const uiScale = getUIScale();
         ctx.save();
 
         if (modeType === '2d') {
@@ -3274,31 +3237,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeColor = '#4caf50';
 
             ctx.beginPath();
-            ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+            ctx.arc(cx, cy, 5 * uiScale, 0, Math.PI * 2);
             ctx.fillStyle = isDrawing ? activeColor : themeColor;
             ctx.shadowColor = 'rgba(46, 125, 50, 0.6)';
-            ctx.shadowBlur = 8;
+            ctx.shadowBlur = 8 * uiScale;
             ctx.fill();
 
             // Pass 1: 白縁取り
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-            ctx.lineWidth = isDrawing ? 5.2 : 4.2;
-            ctx.setLineDash([8, 6]);
+            ctx.lineWidth = (isDrawing ? 5.2 : 4.2) * uiScale;
+            ctx.setLineDash([8 * uiScale, 6 * uiScale]);
             ctx.stroke();
 
             // Pass 2: 緑色点線
             ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
-            ctx.lineWidth = isDrawing ? 3.4 : 2.4;
-            ctx.setLineDash([8, 6]);
+            ctx.lineWidth = (isDrawing ? 3.4 : 2.4) * uiScale;
+            ctx.setLineDash([8 * uiScale, 6 * uiScale]);
             ctx.stroke();
 
             ctx.beginPath();
-            ctx.arc(cx, cy, radius + 4, 0, Math.PI * 2);
+            ctx.arc(cx, cy, radius + 4 * uiScale, 0, Math.PI * 2);
             ctx.setLineDash([]);
             ctx.strokeStyle = 'rgba(46, 125, 50, 0.3)';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1 * uiScale;
             ctx.stroke();
 
             const radZ = (handleRotZ - 90) * (Math.PI / 180);
@@ -3309,23 +3272,23 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.moveTo(cx, cy);
             ctx.lineTo(knobX, knobY);
             ctx.strokeStyle = 'rgba(46, 125, 50, 0.45)';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 1.5 * uiScale;
+            ctx.setLineDash([4 * uiScale, 4 * uiScale]);
             ctx.stroke();
 
             ctx.setLineDash([]);
             ctx.beginPath();
-            ctx.arc(knobX, knobY, isDrawing ? 16 : 14, 0, Math.PI * 2);
+            ctx.arc(knobX, knobY, (isDrawing ? 16 : 14) * uiScale, 0, Math.PI * 2);
             ctx.fillStyle = isDrawing ? '#2e7d32' : '#ffffff';
             ctx.strokeStyle = isDrawing ? '#ffffff' : '#2e7d32';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 3 * uiScale;
             ctx.shadowColor = isDrawing ? 'rgba(76, 175, 80, 0.9)' : 'rgba(46, 125, 50, 0.6)';
-            ctx.shadowBlur = isDrawing ? 12 : 8;
+            ctx.shadowBlur = (isDrawing ? 12 : 8) * uiScale;
             ctx.fill();
             ctx.stroke();
 
             ctx.beginPath();
-            ctx.arc(knobX, knobY, 4, 0, Math.PI * 2);
+            ctx.arc(knobX, knobY, 4 * uiScale, 0, Math.PI * 2);
             ctx.fillStyle = isDrawing ? '#ffffff' : '#2e7d32';
             ctx.shadowBlur = 0;
             ctx.fill();
@@ -3334,24 +3297,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const themeColor = '#2e7d32';
 
             ctx.beginPath();
-            ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+            ctx.arc(cx, cy, 5 * uiScale, 0, Math.PI * 2);
             ctx.fillStyle = themeColor;
             ctx.shadowColor = 'rgba(46, 125, 50, 0.6)';
-            ctx.shadowBlur = 8;
+            ctx.shadowBlur = 8 * uiScale;
             ctx.fill();
 
             // Pass 1: 白縁取り
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-            ctx.lineWidth = isDrawing ? 5.2 : 4.2;
-            ctx.setLineDash([8, 6]);
+            ctx.lineWidth = (isDrawing ? 5.2 : 4.2) * uiScale;
+            ctx.setLineDash([8 * uiScale, 6 * uiScale]);
             ctx.stroke();
 
             // Pass 2: 緑色点線
             ctx.strokeStyle = isDrawing ? 'rgba(76, 175, 80, 0.95)' : 'rgba(46, 125, 50, 0.9)';
-            ctx.lineWidth = isDrawing ? 3.4 : 2.4;
-            ctx.setLineDash([8, 6]);
+            ctx.lineWidth = (isDrawing ? 3.4 : 2.4) * uiScale;
+            ctx.setLineDash([8 * uiScale, 6 * uiScale]);
             ctx.stroke();
 
             ctx.save();
@@ -3361,13 +3324,13 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.beginPath();
             ctx.ellipse(0, 0, radius, radius * 0.35, 0, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(46, 125, 50, 0.45)';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.5 * uiScale;
             ctx.stroke();
 
             ctx.beginPath();
             ctx.ellipse(0, 0, radius * 0.35, radius, 0, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(46, 125, 50, 0.45)';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.5 * uiScale;
             ctx.stroke();
 
             const directions = [
@@ -3379,12 +3342,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             directions.forEach(p => {
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, isDrawing ? 10 : 8, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, (isDrawing ? 10 : 8) * uiScale, 0, Math.PI * 2);
                 ctx.fillStyle = isDrawing ? '#2e7d32' : '#ffffff';
                 ctx.strokeStyle = isDrawing ? '#ffffff' : '#2e7d32';
-                ctx.lineWidth = 2.5;
+                ctx.lineWidth = 2.5 * uiScale;
                 ctx.shadowColor = 'rgba(46, 125, 50, 0.6)';
-                ctx.shadowBlur = 6;
+                ctx.shadowBlur = 6 * uiScale;
                 ctx.fill();
                 ctx.stroke();
             });
@@ -3399,11 +3362,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const w = overlayCanvas.width;
         const h = overlayCanvas.height;
+        const uiScale = getUIScale();
 
         ctx.save();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1 * uiScale;
+        ctx.setLineDash([4 * uiScale, 4 * uiScale]);
 
         ctx.beginPath();
         ctx.moveTo(w / 3, 0); ctx.lineTo(w / 3, h);
@@ -3414,11 +3378,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.setLineDash([]);
         ctx.strokeStyle = isDrawing ? '#4caf50' : '#2e7d32';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 3 * uiScale;
         ctx.strokeRect(0, 0, w, h);
 
-        const bracketLen = 24;
-        ctx.lineWidth = 4;
+        const bracketLen = 24 * uiScale;
+        ctx.lineWidth = 4 * uiScale;
         ctx.strokeStyle = isDrawing ? '#4caf50' : '#2e7d32';
 
         ctx.beginPath();
