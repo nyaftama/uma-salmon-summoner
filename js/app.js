@@ -446,7 +446,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let salmonAspect = 2.0;
 
     let salmonEraseCanvas = document.createElement('canvas');
-    let salmonEraseCtx = salmonEraseCanvas.getContext('2d');
+    let salmonEraseCtx = salmonEraseCanvas.getContext('2d', { willReadFrequently: true });
+    let eraseUndoStack = [];
 
     let currentMode = 'crop';
     let salmonDragMode = 'move';
@@ -471,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let tempSalmonCanvas = document.createElement('canvas');
     let tempSalmonCtx = tempSalmonCanvas.getContext('2d');
     let contourOffCanvas = document.createElement('canvas');
-    let contourOffCtx = contourOffCanvas.getContext('2d');
+    let contourOffCtx = contourOffCanvas.getContext('2d', { willReadFrequently: true });
 
     const salmonState = {
         x: 0,
